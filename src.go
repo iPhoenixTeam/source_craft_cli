@@ -14,9 +14,9 @@ func main() {
 	
 	switch cmd {
 		case "repo":
-			cli.ExecuteRepo(os.Args[2])
+			cli.DispatchRepo(os.Args[2])
 		case "issue":
-			cli.ExecuteIssue(os.Args[2], )
+			cli.DispatchIssue(os.Args[2], )
 
 		default:
 		fmt.Println("Unknown command")

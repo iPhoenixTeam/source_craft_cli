@@ -41,14 +41,14 @@ func ReportSecurity(orgSlug, repoSlug string, topN int) {
 /* --- Pretty printers --- */
 
 func printRepoStats(m map[string]any) {
-	name := fmtString(m["name"], m["slug"])
-	lang := fmtString(m["language"])
+	name := fmtString6(m["name"], m["slug"])
+	lang := fmtString6(m["language"])
 	created := prettyTimeShortAny(m["created_at"])
 	updated := prettyTimeShortAny(m["last_updated"])
 
 	fmt.Printf("%s\n", name)
-	fmt.Printf("repo %s\n\n", fmtString(m["id"], m["slug"]))
-	if d := fmtString(m["description"]); d != "" {
+	fmt.Printf("repo %s\n\n", fmtString6(m["id"], m["slug"]))
+	if d := fmtString6(m["description"]); d != "" {
 		fmt.Println(IndentString(d, 2))
 		fmt.Println()
 	}
@@ -59,7 +59,7 @@ func printRepoStats(m map[string]any) {
 
 	if counters, ok := m["counters"].(map[string]any); ok {
 		fmt.Printf("Forks: %s  PRs: %s  Issues: %s  Branches: %s\n",
-			fmtString(counters["forks"]), fmtString(counters["pull_requests"]), fmtString(counters["issues"]), fmtString(counters["branches"]))
+			fmtString6(counters["forks"]), fmtString6(counters["pull_requests"]), fmtString6(counters["issues"]), fmtString6(counters["branches"]))
 	}
 
 	if traffic, ok := m["traffic"].(map[string]any); ok {
@@ -80,7 +80,7 @@ func printRepoStats(m map[string]any) {
 }
 
 func printUserStats(m map[string]any) {
-	user := fmtString(m["user"], m["slug"], m["id"])
+	user := fmtString6(m["user"], m["slug"], m["id"])
 	fmt.Printf("User: %s\n\n", user)
 
 	if totals, ok := m["totals"].(map[string]any); ok {
@@ -96,8 +96,8 @@ func printUserStats(m map[string]any) {
 		entries := make([]string, 0, len(byRepo))
 		for _, it := range byRepo {
 			if mm, ok := it.(map[string]any); ok {
-				n := fmtString(mm["repo_name"], mm["repo_slug"])
-				score := fmtString(mm["score"], mm["activity_score"])
+				n := fmtString6(mm["repo_name"], mm["repo_slug"])
+				score := fmtString6(mm["score"], mm["activity_score"])
 				entries = append(entries, fmt.Sprintf("  %-30s %6s", TruncateString(n, 30), score))
 			}
 		}
@@ -108,7 +108,7 @@ func printUserStats(m map[string]any) {
 }
 
 func printSecurityStats(m map[string]any) {
-	fmt.Printf("Security stats for %s\n\n", fmtString(m["repo"], m["slug"], m["id"]))
+	fmt.Printf("Security stats for %s\n\n", fmtString6(m["repo"], m["slug"], m["id"]))
 
 	if counts, ok := m["counts"].(map[string]any); ok {
 		printKvLine("Critical", counts["critical"])
@@ -123,14 +123,14 @@ func printSecurityStats(m map[string]any) {
 		for _, it := range scanners {
 			if mm, ok := it.(map[string]any); ok {
 				fmt.Printf("  %-20s  last_scan: %s  issues: %s\n",
-					fmtString(mm["name"]), prettyTimeShortAny(mm["last_scan"]), fmtString(mm["issues_count"]))
+					fmtString6(mm["name"]), prettyTimeShortAny(mm["last_scan"]), fmtString6(mm["issues_count"]))
 			}
 		}
 	}
 }
 
 func printSecurityReport(m map[string]any, topN int) {
-	fmt.Printf("Security report for %s\n\n", fmtString(m["repo"], m["slug"], m["id"]))
+	fmt.Printf("Security report for %s\n\n", fmtString6(m["repo"], m["slug"], m["id"]))
 
 	vulns := collectVulnerabilities(m)
 	if len(vulns) == 0 {
@@ -178,17 +178,17 @@ func collectVulnerabilities(m map[string]any) []vulnerability {
 		for _, it := range items {
 			if mm, ok := it.(map[string]any); ok {
 				v := vulnerability{
-					Title:       fmtString(mm["title"], mm["name"]),
-					Severity:    fmtString(mm["severity"], mm["level"]),
-					Package:     fmtString(mm["package"], mm["pkg"]),
-					Version:     fmtString(mm["version"]),
-					Description: fmtString(mm["description"]),
+					Title:       fmtString6(mm["title"], mm["name"]),
+					Severity:    fmtString6(mm["severity"], mm["level"]),
+					Package:     fmtString6(mm["package"], mm["pkg"]),
+					Version:     fmtString6(mm["version"]),
+					Description: fmtString6(mm["description"]),
 					Score:       float64From(mm["score"]),
 					FixAvailable: func() bool {
 						if b, ok := mm["fix_available"].(bool); ok {
 							return b
 						}
-						if s := fmtString(mm["fix_version"]); s != "" {
+						if s := fmtString6(mm["fix_version"]); s != "" {
 							return true
 						}
 						return false
@@ -196,7 +196,7 @@ func collectVulnerabilities(m map[string]any) []vulnerability {
 				}
 				if refs, ok := mm["references"].([]any); ok {
 					for _, r := range refs {
-						v.References = append(v.References, fmtString(r))
+						v.References = append(v.References, fmtString6(r))
 					}
 				}
 				out = append(out, v)
@@ -230,7 +230,7 @@ func printKvLine(k string, v any) {
 	fmt.Printf("  %-18s %v\n", k+":", v)
 }
 
-func fmtString(vals ...any) string {
+func fmtString6(vals ...any) string {
 	for _, v := range vals {
 		if v == nil {
 			continue

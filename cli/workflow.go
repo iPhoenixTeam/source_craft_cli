@@ -1,15 +1,10 @@
-### workflow pretty output
-
-```go
 package cli
 
 import (
 	"fmt"
 	"strings"
-	"time"
 )
 
-// ListWorkflows выводит список workflow для репозитория
 func ListWorkflows(orgSlug, repoSlug string) {
 	path := fmt.Sprintf("repos/%s/%s/ci_workflows", orgSlug, repoSlug)
 	resp, err := Execute1("GET", path, nil)
@@ -29,13 +24,13 @@ func ListWorkflows(orgSlug, repoSlug string) {
 			continue
 		}
 		id := fmtString(w["id"], w["name"])
-		name := fmtString(w["name"], w["title"], w["slug"])
-		enabled := fmtString(w["enabled"], w["active"])
+		name := fmtString(w["name"], w["title"])
+		enabled := fmtString(w["enabled"])
 		triggers := joinStringsFrom(w["triggers"])
-		updated := prettyTimeShortAny(w["updated_at"], w["last_updated"])
+		updated := prettyTimeShortAny(w["updated_at"])
 		lastRun := extractLastRunSummary(w)
 
-		fmt.Printf("%-14s  %-30s  %s\n", shortID(id), truncate(name, 30), enabledStatusSymbol(enabled))
+		fmt.Printf("%-14s  %-30s  %s\n", ShortID(id), TruncateString(name, 30), enabledStatusSymbol(enabled))
 		if triggers != "" {
 			fmt.Printf("  triggers: %s\n", triggers)
 		}
@@ -49,7 +44,6 @@ func ListWorkflows(orgSlug, repoSlug string) {
 	}
 }
 
-// WorkflowStatus показывает статус последних запусков / конкретного workflow
 func WorkflowStatus(orgSlug, repoSlug, workflowID string, limit int) {
 	if limit <= 0 {
 		limit = 5
@@ -78,11 +72,11 @@ func WorkflowStatus(orgSlug, repoSlug, workflowID string, limit int) {
 		if a, ok := r["actor"].(map[string]any); ok {
 			actor = fmtString(a["slug"], a["id"])
 		}
-		created := prettyTimeShortAny(r["created_at"], r["started_at"])
+		created := prettyTimeShortAny(r["created_at"])
 		duration := fmtString(r["duration"], r["elapsed"])
 
-		fmt.Printf("%s  %s  %s\n", shortID(runID), statusSymbol(status), strings.ToUpper(conclusion))
-		fmt.Printf("  by: %-20s  started: %s  elapsed: %s\n", truncate(actor, 20), created, duration)
+		fmt.Printf("%s  %s  %s\n", ShortID(runID), statusSymbol(status), strings.ToUpper(conclusion))
+		fmt.Printf("  by: %-20s  started: %s  elapsed: %s\n", TruncateString(actor, 20), created, duration)
 		// job summary if present
 		if jobs, ok := r["jobs"].([]any); ok && len(jobs) > 0 {
 			fmt.Printf("  jobs: %d\n", len(jobs))
@@ -154,7 +148,7 @@ func WorkflowRun(orgSlug, repoSlug, workflowID string, inputs map[string]any) {
 	if inputs != nil && len(inputs) > 0 {
 		body["inputs"] = inputs
 	}
-	result, err := Execute("POST", path, body)
+	result, err := Execute1("POST", path, body)
 	Ensure(err)
 
 	// результат может содержать run id или url
@@ -203,14 +197,12 @@ func extractLastRunSummary(w map[string]any) string {
 	if lr, ok := w["last_run"].(map[string]any); ok {
 		id := fmtString(lr["id"], lr["run_id"])
 		status := fmtString(lr["status"], lr["state"])
-		concl := fmtString(lr["conclusion"], lr["result"])
-		t := prettyTimeShortAny(lr["started_at"], lr["created_at"])
-		return fmt.Sprintf("%s %s %s", shortID(id), statusSymbol(status), t)
+		t := prettyTimeShortAny(lr["started_at"])
+		return fmt.Sprintf("%s %s %s", ShortID(id), statusSymbol(status), t)
 	}
 	// alternate fields
 	if lastRunId := fmtString(w["last_run_id"], w["last_run_slug"]); lastRunId != "" {
-		return shortID(lastRunId)
+		return ShortID(lastRunId)
 	}
 	return ""
 }
-```

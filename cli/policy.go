@@ -3,7 +3,6 @@ package cli
 import (
 	"fmt"
 	"strings"
-	"time"
 )
 
 func DispatchPolicy(command string, args... string) {
@@ -33,14 +32,9 @@ func PolicyView(orgSlug, repoSlug string) {
 }
 
 func PolicyUpdate(orgSlug, repoSlug, branch string, rules map[string]any) {
-	body := map[string]any{
-		"branch": branch,
-	}
-	for k, v := range rules {
-		body[k] = v
-	}
+	rules["branch"] = branch;
 	path := fmt.Sprintf("repos/%s/%s/branch_policies", orgSlug, repoSlug)
-	result, err := Execute("PUT", path, body)
+	result, err := Execute1("PUT", path, rules)
 	Ensure(err)
 	fmt.Println(ToJson(result))
 }
@@ -54,12 +48,10 @@ func ReviewRulesView(orgSlug, repoSlug string) {
 
 func ReviewRulesUpdate(orgSlug, repoSlug, ruleID string, payload map[string]any) {
 	path := fmt.Sprintf("repos/%s/%s/review_rules/%s", orgSlug, repoSlug, ruleID)
-	result, err := Execute("PATCH", path, payload)
+	result, err := Execute1("PATCH", path, payload)
 	Ensure(err)
 	fmt.Println(ToJson(result))
 }
-
-/* --- Pretty printers --- */
 
 func printPolicyList(m map[string]any) {
 	repo := fmtString(m["repo"], m["slug"], m["id"])
@@ -80,7 +72,7 @@ func printPolicyList(m map[string]any) {
 		enforced := fmtString(p["enforced"], p["enabled"])
 		providers := joinStringsFrom(p["providers"])
 		protectors := joinStringsFrom(p["protectors"])
-		updated := prettyTimeShortAny(p["updated_at"], p["last_updated"])
+		updated := prettyTimeShortAny(p["last_updated"])
 
 		fmt.Printf("branch: %s\n", branch)
 		fmt.Printf("  enforced: %s  updated: %s\n", enforced, updated)
@@ -92,7 +84,8 @@ func printPolicyList(m map[string]any) {
 		}
 		// show raw settings if available
 		if cfg, ok := p["config"].(map[string]any); ok && len(cfg) > 0 {
-			fmt.Printf("  config: %s\n", truncate(ToJson(cfg), 200))
+			result, _ := ToJson(cfg)
+			fmt.Printf("  config: %s\n", TruncateString(result, 200))
 		}
 		fmt.Println()
 	}
@@ -118,7 +111,7 @@ func printReviewRulesList(m map[string]any) {
 		enabled := fmtString(r["enabled"], r["active"])
 		conditions := summarizeConditions(r["conditions"])
 		requirements := summarizeRequirements(r["requirements"])
-		updated := prettyTimeShortAny(r["updated_at"], r["last_updated"])
+		updated := prettyTimeShortAny(r["last_updated"])
 
 		fmt.Printf("%s  %s\n", id, name)
 		fmt.Printf("  enabled: %s  updated: %s\n", enabled, updated)
@@ -129,8 +122,8 @@ func printReviewRulesList(m map[string]any) {
 			fmt.Printf("  requirements: %s\n", requirements)
 		}
 		// print raw payload preview when available
-		if cfg := ToJson(r); cfg != "" {
-			fmt.Printf("  preview: %s\n\n", truncate(cfg, 240))
+		if cfg, _ := ToJson(r); cfg != "" {
+			fmt.Printf("  preview: %s\n\n", TruncateString(cfg, 240))
 		} else {
 			fmt.Println()
 		}
@@ -194,7 +187,8 @@ func summarizeConditions(v any) string {
 		}
 		return strings.Join(parts, "; ")
 	case map[string]any:
-		return truncate(ToJson(t), 200)
+		res, _ := ToJson(t)
+		return TruncateString(res, 200)
 	default:
 		return fmt.Sprint(v)
 	}
@@ -237,21 +231,6 @@ func fmtString(vals ...any) string {
 			if s, ok := t["name"].(string); ok && s != "" {
 				return s
 			}
-		}
-	}
-	return ""
-}
-
-func prettyTimeShortAny(vals ...any) string {
-	for _, v := range vals {
-		if v == nil {
-			continue
-		}
-		if s, ok := v.(string); ok && s != "" {
-			if t, err := time.Parse(time.RFC3339, s); err == nil {
-				return t.Format("2006-01-02")
-			}
-			return s
 		}
 	}
 	return ""

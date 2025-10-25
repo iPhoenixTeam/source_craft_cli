@@ -1,6 +1,3 @@
-### i18n
-
-```go
 package cli
 
 import (
@@ -239,4 +236,3 @@ func loadBuiltInEn() {
 	locales["en"] = nested
 	i18nMu.Unlock()
 }
-```

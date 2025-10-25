@@ -16,13 +16,13 @@ const (
 func ExecuteMilestone(command string, args... string) {
     switch command {
 		case "list":
-			ListRepo(args[3])
+			ListMilestones(args[3])
 		case "create":
-			CreateRepo(args[3], args[4], args[4], "", RepoPublic, false)
+			CreateMilestone(args[3], args[4], args[4], "", MilestonePublic, false)
 		case "fork":
-			ForkRepo(args[3], args[4], args[5], true)
+			ForkMilestone(args[3], args[4], args[5], true)
 		case "view":
-			ViewRepo(args[3], args[4])
+			ViewMilestone(args[3], args[4])
 		default:
 			//help
 	}
@@ -140,8 +140,7 @@ func ListMilestonesPretty(orgSlug, repoSlug string) {
 }
 
 func ViewMilestonePretty(orgSlug, repoSlug, milestoneSlug string) {
-    path := fmt.Sprintf("repos/%s/%s/milestones/%s", orgSlug, repoSlug, milestoneSlug)
-    result, err := Execute1("GET", path, nil)
+    result, err := Execute1("GET", fmt.Sprintf("repos/%s/%s/milestones/%s", orgSlug, repoSlug, milestoneSlug), nil)
     Ensure(err)
 
     // поля

@@ -61,7 +61,7 @@ func ListPr(orgSlug, repoSlug, filter string, pageSize int, pageToken string) {
 			author = fmtString(a["slug"], a["id"])
 		}
 		state := fmtString(pr["status"], pr["state"], pr["status_slug"])
-		updated := prettyTimeShortAny(pr["updated_at"], pr["last_updated"])
+		updated := prettyTimeShortAny(pr["updated_at"])
 		source := fmtString(pr["source_branch"], pr["head"])
 		target := fmtString(pr["target_branch"], pr["base"])
 
@@ -80,7 +80,7 @@ func ListPr(orgSlug, repoSlug, filter string, pageSize int, pageToken string) {
 			extraStr = "  — " + strings.Join(extra, "  ")
 		}
 
-		fmt.Printf("%s %s  %-70s%s\n", shortID(id), prStateSymbol(state), truncate(title, 70), extraStr)
+		fmt.Printf("%s %s  %-70s%s\n", ShortID(id), prStateSymbol(state), TruncateString(title, 70), extraStr)
 	}
 }
 
@@ -101,10 +101,10 @@ func CreatePr(orgSlug, repoSlug, title, body, sourceBranch, targetBranch string,
 	}
 	if silent {
 		// some APIs accept silent or notify flag as query param
-		_, err := Execute("POST", path+"?silent=true", payload)
+		_, err := Execute1("POST", path+"?silent=true", payload)
 		Ensure(err)
 	} else {
-		result, err := Execute("POST", path, payload)
+		result, err := Execute1("POST", path, payload)
 		Ensure(err)
 		fmt.Printf("Pull request created: %s\n", fmtString(result["slug"], result["id"]))
 		if url := fmtString(result["url"], result["html_url"], result["web_url"]); url != "" {
@@ -212,7 +212,7 @@ func MergePr(orgSlug, repoSlug, prSlug, method string, squash bool, deleteBranch
 	if deleteBranch {
 		body["delete_branch"] = true
 	}
-	result, err := Execute("POST", path, body)
+	result, err := Execute1("POST", path, body)
 	Ensure(err)
 
 	merged := false
@@ -250,13 +250,13 @@ func candidatePrListPath(orgSlug, repoSlug string) string {
 func prStateSymbol(s string) string {
 	switch strings.ToLower(s) {
 	case "open", "opened":
-		return "○"
+		return "○ open(ed)"
 	case "merged":
-		return "◆"
+		return "◆ merged"
 	case "closed", "declined":
-		return "●"
+		return "● closed/declined"
 	case "draft":
-		return "…"
+		return "… draft"
 	default:
 		return "·"
 	}

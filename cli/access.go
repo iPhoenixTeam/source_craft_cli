@@ -5,8 +5,6 @@ import (
     "strings"
 )
 
-// AccessUser performs management actions for repository users.
-// action may be: "list", "add", "remove", "get" (best-effort, maps to common API shapes)
 func AccessUser(orgSlug, repoSlug, action string, args ...string) {
     if orgSlug == "" || repoSlug == "" {
         Ensure(fmt.Errorf("repository not specified"))
@@ -35,8 +33,9 @@ func AccessUser(orgSlug, repoSlug, action string, args ...string) {
         res, err := Execute("POST", path, body)
         Ensure(err)
         fmt.Printf("Granted role %s to %s\n", role, user)
-        if ToJson(res) != "" {
-            fmt.Println(truncate(ToJson(res), 400))
+        res1, _ := ToJson(res)
+        if res1 != "" {
+            fmt.Println(TruncateString(res1, 400))
         }
     case "remove", "revoke":
         // args: userSlug role (role optional)
@@ -65,8 +64,9 @@ func AccessUser(orgSlug, repoSlug, action string, args ...string) {
         } else {
             fmt.Printf("Removed all roles for %s\n", user)
         }
-        if ToJson(res) != "" {
-            fmt.Println(truncate(ToJson(res), 400))
+        res1, err := ToJson(res)
+        if res1 != "" {
+            fmt.Println(TruncateString(res1, 400))
         }
     case "get":
         // args: userSlug
@@ -121,23 +121,23 @@ func AccessInvite(orgSlug, repoSlug, email string, args ...string) {
     if role != "" {
         body["role"] = role
     }
-    // prefer repo scoped invite if API supports it
-    pathRepo := fmt.Sprintf("repos/%s/%s/invitations", orgSlug, repoSlug)
-    res, err := Execute("POST", pathRepo, body)
+
+    res, err := Execute1("POST", fmt.Sprintf("repos/%s/%s/invitations", orgSlug, repoSlug), body)
     if err == nil {
         fmt.Printf("Invitation sent to %s for %s/%s\n", email, orgSlug, repoSlug)
-        if ToJson(res) != "" {
-            fmt.Println(truncate(ToJson(res), 400))
+        res1, _ := ToJson(res)
+        if res1 != "" {
+            fmt.Println(TruncateString(res1, 400))
         }
         return
     }
-    // fallback to org invite
-    pathOrg := fmt.Sprintf("orgs/%s/invitations", orgSlug)
-    res2, err2 := Execute("POST", pathOrg, body)
+
+    res2, err2 := Execute1("POST", fmt.Sprintf("orgs/%s/invitations", orgSlug), body)
     Ensure(err2)
     fmt.Printf("Invitation sent to %s for org %s\n", email, orgSlug)
-    if ToJson(res2) != "" {
-        fmt.Println(truncate(ToJson(res2), 400))
+    res1, _ := ToJson(res2)
+    if res1 != "" {
+        fmt.Println(TruncateString(res1, 400))
     }
 }
 
@@ -160,11 +160,12 @@ func AccessRole(orgSlug, repoSlug, subject, role, action string) {
             "roles": []string{role},
         }
         path := fmt.Sprintf("repos/%s/%s/roles", orgSlug, repoSlug)
-        res, err := Execute("POST", path, body)
+        res, err := Execute1("POST", path, body)
         Ensure(err)
         fmt.Printf("Assigned role %s to %s\n", role, subject)
-        if ToJson(res) != "" {
-            fmt.Println(truncate(ToJson(res), 300))
+        res2, _ := ToJson(res)
+        if res2 != "" {
+            fmt.Println(TruncateString(res2, 300))
         }
     case "remove", "revoke":
         body := map[string]any{
@@ -178,7 +179,7 @@ func AccessRole(orgSlug, repoSlug, subject, role, action string) {
         Ensure(err)
         fmt.Printf("Removed role %s from %s\n", role, subject)
         if ToJson(res) != "" {
-            fmt.Println(truncate(ToJson(res), 300))
+            fmt.Println(TruncateString(ToJson(res), 300))
         }
     default:
         Ensure(fmt.Errorf("unknown action %q for role management (use add/remove)", action))
