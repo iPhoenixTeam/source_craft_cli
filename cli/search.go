@@ -4,7 +4,6 @@ import (
     "fmt"
     "regexp"
     "strings"
-    "time"
 )
 
 func CodeSearch(query, orgSlug, repoSlug string, pageSize int, pageToken string) {
@@ -269,18 +268,3 @@ func float64From(v any) float64 {
         return 0
     }
 }
-
-func prettyTimeShortAny(val any) string {
-    if val == nil {
-        return ""
-    }
-    if s, ok := val.(string); ok && s != "" {
-        if t, err := time.Parse(time.RFC3339, s); err == nil {
-            return t.Format("2006-01-02")
-        }
-        return s
-    }
-    return ""
-}
-
-

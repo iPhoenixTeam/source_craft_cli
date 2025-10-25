@@ -71,7 +71,6 @@ func ConfigGet(key string) {
     Ensure(err)
 
     if key == "" {
-        // print full config
         b, _ := json.MarshalIndent(cfg, "", "  ")
         fmt.Println(string(b))
         return
@@ -84,11 +83,11 @@ func ConfigGet(key string) {
         fmt.Println(v)
         return
     }
-    // not found -> empty output
+
     fmt.Println("")
 }
 
-/* --- config file helpers --- */
+
 
 func configFilePath() (string, error) {
     dir, err := os.UserConfigDir()
@@ -116,7 +115,6 @@ func loadConfig() (*CLIConfig, error) {
     var cfg CLIConfig
     dec := json.NewDecoder(f)
     if err := dec.Decode(&cfg); err != nil {
-        // if decode fails, return empty config and the error (caller will Ensure)
         return &CLIConfig{Settings: make(map[string]string)}, err
     }
     if cfg.Settings == nil {

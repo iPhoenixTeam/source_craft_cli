@@ -17,7 +17,23 @@ const (
 	RepoPrivate  RepoVisibility = "private"
 )
 
-func ExecuteRepo() {}
+func ExecuteRepo(command string, args... string) {
+
+	subcmd := os.Args[2]
+
+	switch subcmd {
+		case "list":
+			ListRepo(os.Args[3])
+		case "create":
+			CreateRepo(os.Args[3], os.Args[4], os.Args[4], "", RepoPublic, false)
+		case "fork":
+			ForkRepo(os.Args[3], os.Args[4], os.Args[5], true)
+		case "view":
+			ViewRepo(os.Args[3], os.Args[4])
+		default:
+			//help
+	}
+}
 
 func ListRepo(orgSlug string) {
 	result, err := Execute1("GET", fmt.Sprintf("orgs/%s/repos", orgSlug), nil)

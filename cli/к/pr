@@ -1,6 +1,3 @@
-### pull requests
-
-```go
 package cli
 
 import (
@@ -246,6 +243,3 @@ func prStateSymbol(s string) string {
 		return "·"
 	}
 }
-
-// Ensure, Execute, Execute1, ToJson and other helpers are assumed to exist elsewhere in the package.
-```

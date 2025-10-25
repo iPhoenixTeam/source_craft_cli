@@ -12,20 +12,10 @@ func main() {
 	
 	switch cmd {
 		case "repo":
-			subcmd := os.Args[2]
-
-			switch subcmd {
-			case "list":
-				cli.ListRepo(os.Args[3])
-			case "create":
-				cli.CreateRepo(os.Args[3], os.Args[4], os.Args[4], "", cli.Public, false)
-			case "fork":
-				cli.ForkRepo(os.Args[3], os.Args[4], os.Args[5], true)
-			case "view":
-				cli.ViewRepo(os.Args[3], os.Args[4])
+			
 		}	
 		case "issue":
-			
+
 	default:
 		fmt.Println("Unknown command")
 		os.Exit(1)

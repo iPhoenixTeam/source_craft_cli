@@ -50,7 +50,7 @@ func printRepoStats(m map[string]any) {
 	fmt.Printf("%s\n", name)
 	fmt.Printf("repo %s\n\n", fmtString(m["id"], m["slug"]))
 	if d := fmtString(m["description"]); d != "" {
-		fmt.Println(indent(d, 2))
+		fmt.Println(IndentString(d, 2))
 		fmt.Println()
 	}
 	fmt.Printf("Language:   %s\n", lang)
@@ -99,7 +99,7 @@ func printUserStats(m map[string]any) {
 			if mm, ok := it.(map[string]any); ok {
 				n := fmtString(mm["repo_name"], mm["repo_slug"])
 				score := fmtString(mm["score"], mm["activity_score"])
-				entries = append(entries, fmt.Sprintf("  %-30s %6s", truncate(n, 30), score))
+				entries = append(entries, fmt.Sprintf("  %-30s %6s", TruncateString(n, 30), score))
 			}
 		}
 		for _, e := range entries {
@@ -154,7 +154,7 @@ func printSecurityReport(m map[string]any, topN int) {
 			fmt.Printf("     pkg: %s  version: %s\n", v.Package, v.Version)
 		}
 		if v.Description != "" {
-			fmt.Println(indent(truncate(v.Description, 200), 6))
+			fmt.Println(IndentString(TruncateString(v.Description, 200), 6))
 		}
 		fmt.Printf("     score: %.2f  fix_available: %v  references: %d\n\n", v.Score, v.FixAvailable, len(v.References))
 	}
@@ -181,7 +181,7 @@ func collectVulnerabilities(m map[string]any) []vulnerability {
 				v := vulnerability{
 					Title:       fmtString(mm["title"], mm["name"]),
 					Severity:    fmtString(mm["severity"], mm["level"]),
-					Package:     fmtString(mm["package", "pkg"]),
+					Package:     fmtString(mm["package"], mm["pkg"]),
 					Version:     fmtString(mm["version"]),
 					Description: fmtString(mm["description"]),
 					Score:       float64From(mm["score"]),
@@ -248,26 +248,6 @@ func fmtString(vals ...any) string {
 		}
 	}
 	return ""
-}
-
-func float64From(v any) float64 {
-	switch t := v.(type) {
-	case float64:
-		return t
-	case float32:
-		return float64(t)
-	case int:
-		return float64(t)
-	case int64:
-		return float64(t)
-	case string:
-		// ignore parse errors
-		var f float64
-		fmt.Sscanf(t, "%f", &f)
-		return f
-	default:
-		return 0
-	}
 }
 
 func prettyKey(k string) string {
