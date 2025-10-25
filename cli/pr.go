@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-func DispatchPr(command string, args... string) {
+func DispatchPr(command string, args []string) {
 	switch command {
 		case "list":
 			requireArgs(args, 5, "")

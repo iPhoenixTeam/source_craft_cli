@@ -17,14 +17,21 @@ const (
 func ExecuteMilestone(command string, args... string) {
     switch command {
 		case "list":
-            i, err := strconv.ParseInt(args[5])
+            requireArgs(args, 3, "")
+            i, err := strconv.ParseInt(args[2], 10, 8)
             Ensure(err)
-                
-            ListMilestones(args[0], args[1], i, )
+            pageToken := ""
+            if len(args) > 2 {
+                pageToken = args[3]
+            }
+
+            ListMilestones(args[0], args[1], i, pageToken)
 		case "create":
+            requireArgs(args, 3, "")
 			CreateMilestone(args[0], args[1], args[2])
 		case "view":
-			ViewMilestone(args[0], args[1], args[2])
+			requireArgs(args, 3, "")
+            ViewMilestone(args[0], args[1], args[2])
 		default:
 			//help
 	}

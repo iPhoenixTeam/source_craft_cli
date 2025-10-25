@@ -10,9 +10,7 @@ func CodeSearch(query, orgSlug, repoSlug string, pageSize int, pageToken string)
     paths := candidateCodeSearchPaths(orgSlug, repoSlug)
     var resp map[string]any
     var err error
-    var tried []string
     for _, p := range paths {
-        tried = append(tried, p)
         q := make(map[string]any)
         if query != "" {
             q["q"] = query

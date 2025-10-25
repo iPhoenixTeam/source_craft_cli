@@ -13,28 +13,28 @@ const (
 	IssuePrivate IssueVisibility = "private"
 )
 
-func DispatchIssue(command string, args... string) {
+func DispatchIssue(command string, args []string) {
 
 	switch command {
 		case "list":
-			requireArgs(args, 1, "")
-			ListRepo(args[3])
+			requireArgs(args, 2, "")
+			ListIssues(args[0], args[1])
 		case "create":
 			requireArgs(args, 3, "")
-			CreateRepo(args[3], args[4], args[4], "", RepoPublic, false)
+			CreateRepo(args[0], args[1], args[1], "", RepoPublic, false)
 		case "fork":
 			requireArgs(args, 3, "")
-			ForkRepo(args[3], args[4], args[5], true)
+			ForkRepo(args[0], args[1], args[2], true)
 		case "view":
 			requireArgs(args, 2, "")
-			ViewRepo(args[3], args[4])
+			ViewRepo(args[0], args[1])
 		default:
 			//help
 	}
 }
 
-func ListIssues() {
-    result, err := Execute1("GET", "me/issues", nil)
+func ListIssues(org_slug, repo_slug string) {
+    result, err := Execute1("GET", fmt.Sprintf("/repos/%s/%s/issues", org_slug, repo_slug), nil)
     Ensure(err)
     fmt.Println(ToJson(result))
 }

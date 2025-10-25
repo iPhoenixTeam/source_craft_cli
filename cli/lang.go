@@ -16,6 +16,10 @@ var (
 	activeLocale = "en"
 )
 
+func languagesDirPath() (string, error) {
+	return os.Executable()
+}
+
 func InitI18n() error {
 	cfg, _ := loadConfig()
 	if cfg != nil && cfg.Settings != nil {

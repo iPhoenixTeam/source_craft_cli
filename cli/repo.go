@@ -17,7 +17,7 @@ const (
 	RepoPrivate  RepoVisibility = "private"
 )
 
-func DispatchRepo(command string, args... string) {
+func DispatchRepo(command string, args []string) {
 
 	switch command {
 		case "list":
