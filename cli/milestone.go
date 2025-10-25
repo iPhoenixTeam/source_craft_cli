@@ -1,8 +1,9 @@
 package cli
 
 import (
-    "fmt"
-    "time"
+	"fmt"
+	"strings"
+	"time"
 )
 
 type MilestoneStatus string
@@ -11,6 +12,21 @@ const (
     MilestoneOpen   MilestoneStatus = "open"
     MilestoneClosed MilestoneStatus = "closed"
 )
+
+func ExecuteMilestone(command string, args... string) {
+    switch command {
+		case "list":
+			ListRepo(args[3])
+		case "create":
+			CreateRepo(args[3], args[4], args[4], "", RepoPublic, false)
+		case "fork":
+			ForkRepo(args[3], args[4], args[5], true)
+		case "view":
+			ViewRepo(args[3], args[4])
+		default:
+			//help
+	}
+}
 
 func ListMilestones(orgSlug, repoSlug string, pageSize int, pageToken string) {
     path := fmt.Sprintf("repos/%s/%s/milestones", orgSlug, repoSlug)
@@ -68,7 +84,7 @@ func printMilestoneLine(id, title, state, due string) {
     if len(id) > 8 {
         shortID = id[:8]
     }
-    stateSym := stateSymbol(state)
+    stateSym := stateSymbol1(state)
     dueStr := due
     if dueStr == "" {
         dueStr = "no due date"
@@ -76,7 +92,7 @@ func printMilestoneLine(id, title, state, due string) {
     fmt.Printf("%s %s  %-10s  %s\n", shortID, stateSym, dueStr, title)
 }
 
-func stateSymbol(state string) string {
+func stateSymbol1(state string) string {
     switch strings.ToLower(state) {
     case "open", "opened":
         return "○"
@@ -115,9 +131,9 @@ func ListMilestonesPretty(orgSlug, repoSlug string) {
         if !ok {
             continue
         }
-        id := fmtString(m["id"])
-        title := fmtString(m["title"])
-        state := fmtString(m["status"], m["state"], m["status_slug"])
+        id := fmtString4(m["id"])
+        title := fmtString4(m["title"])
+        state := fmtString4(m["status"], m["state"], m["status_slug"])
         due := parseDateFromMap(m, "deadline", "due_date", "due")
         printMilestoneLine(id, title, state, due)
     }
@@ -130,12 +146,12 @@ func ViewMilestonePretty(orgSlug, repoSlug, milestoneSlug string) {
     Ensure(err)
 
     // поля
-    id := fmtString(result["id"])
-    title := fmtString(result["title"])
-    description := fmtString(result["description"], result["body"])
-    state := fmtString(result["status"], result["state"], result["status_slug"])
-    created := fmtString(result["created_at"], result["created"])
-    updated := fmtString(result["updated_at"], result["updated"])
+    id := fmtString4(result["id"])
+    title := fmtString4(result["title"])
+    description := fmtString4(result["description"], result["body"])
+    state := fmtString4(result["status"], result["state"], result["status_slug"])
+    created := fmtString4(result["created_at"], result["created"])
+    updated := fmtString4(result["updated_at"], result["updated"])
     due := parseDateFromMap(result, "deadline", "due_date", "due")
 
     // Header (title line + meta)
@@ -167,7 +183,7 @@ func ViewMilestonePretty(orgSlug, repoSlug, milestoneSlug string) {
 
 // Вспомогательные функции
 
-func fmtString(vals ...any) string {
+func fmtString4(vals ...any) string {
     for _, v := range vals {
         if v == nil {
             continue

@@ -19,17 +19,15 @@ const (
 
 func ExecuteRepo(command string, args... string) {
 
-	subcmd := os.Args[2]
-
-	switch subcmd {
+	switch command {
 		case "list":
-			ListRepo(os.Args[3])
+			ListRepo(args[3])
 		case "create":
-			CreateRepo(os.Args[3], os.Args[4], os.Args[4], "", RepoPublic, false)
+			CreateRepo(args[3], args[4], args[4], "", RepoPublic, false)
 		case "fork":
-			ForkRepo(os.Args[3], os.Args[4], os.Args[5], true)
+			ForkRepo(args[3], args[4], args[5], true)
 		case "view":
-			ViewRepo(os.Args[3], os.Args[4])
+			ViewRepo(args[3], args[4])
 		default:
 			//help
 	}

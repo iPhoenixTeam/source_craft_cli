@@ -6,6 +6,22 @@ import (
 	"time"
 )
 
+func ExecutePr(command string, args... string) {
+	switch command {
+		case "list":
+			ListRepo(args[3])
+		case "create":
+			CreateRepo(args[3], args[4], args[4], "", RepoPublic, false)
+		case "view":
+			ViewRepo(args[3], args[4])
+		case "merge":
+			ViewRepo(args[3], args[4])
+		default:
+			//help
+	}
+}
+
+
 // ListPRs lists pull requests for a repository or user (tries several endpoints)
 func ListPRs(orgSlug, repoSlug, filter string, pageSize int, pageToken string) {
 	path := candidatePRListPath(orgSlug, repoSlug)
