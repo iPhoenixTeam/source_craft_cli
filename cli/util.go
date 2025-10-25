@@ -22,14 +22,33 @@ func IndentString(s string, spaces int) string {
 }
 
 func StringContains(s, sub string) bool {
-	return len(s) >= len(sub) && (len(sub) == 0 || (indexOf(s, sub) >= 0))
+	return len(s) >= len(sub) && (len(sub) == 0 || (IndexOfString(s, sub) >= 0))
 }
 
-func IndexOf(s, sub string) int {
+func IndexOfString(s, sub string) int {
 	for i := 0; i+len(sub) <= len(s); i++ {
 		if s[i:i+len(sub)] == sub {
 			return i
 		}
 	}
 	return -1
+}
+
+func ShortID(id string) string {
+	if len(id) > 8 {
+		return id[:8]
+	}
+	return id
+}
+
+func IndentMultilineString(s string, indent int) string {
+    if s == "" {
+        return ""
+    }
+    pad := strings.Repeat(" ", indent)
+    lines := strings.Split(strings.TrimRight(s, "\n"), "\n")
+    for i := range lines {
+        lines[i] = pad + lines[i]
+    }
+    return strings.Join(lines, "\n")
 }

@@ -180,13 +180,6 @@ func containsRemote(list string, name string) bool {
 	return result && (len(list) > 0 && (StringContains(list, name)))
 }
 
-func shortID(id string) string {
-    if len(id) > 8 {
-        return id[:8]
-    }
-    return id
-}
-
 func visSymbol(vis string) string {
     switch strings.ToLower(vis) {
     case "public":
@@ -238,10 +231,10 @@ func ListRepoPretty(orgSlug string) {
         if !ok {
             continue
         }
-        id := shortID(fmtString(m["id"], m["slug"]))
-        name := fmtString(m["name"], m["slug"])
-        vis := fmtString(m["visibility"])
-        lang := fmtString(m["language"])
+        id := ShortID(fmtString1(m["id"], m["slug"]))
+        name := fmtString1(m["name"], m["slug"])
+        vis := fmtString1(m["visibility"])
+        lang := fmtString1(m["language"])
         updated := prettyTimeShort(m["last_updated"])
         counters := m["counters"]
         forks, prs, issues := "0", "0", "0"
@@ -250,7 +243,7 @@ func ListRepoPretty(orgSlug string) {
             if v, ok := c["pull_requests"].(string); ok { prs = v }
             if v, ok := c["issues"].(string); ok { issues = v }
         }
-        desc := fmtString(m["description"])
+        desc := fmtString1(m["description"])
         fmt.Printf("%s %s  %-20s  %s  %s\n", id, visSymbol(vis), name, lang, updated)
         fmt.Printf("    ↳ forks:%s  prs:%s  issues:%s\n", forks, prs, issues)
         if desc != "" {
@@ -266,21 +259,21 @@ func ViewRepoPretty(orgSlug, repoSlug string) {
     result, err := Execute1("GET", path, nil)
     Ensure(err)
 
-    id := fmtString(result["id"])
-    name := fmtString(result["name"], result["slug"])
-    desc := fmtString(result["description"])
-    visibility := fmtString(result["visibility"])
-    defaultBranch := fmtString(result["default_branch"])
-    lang := fmtString(result["language"], mapStringField(result, "language", "name"))
+    id := fmtString1(result["id"])
+    name := fmtString1(result["name"], result["slug"])
+    desc := fmtString1(result["description"])
+    visibility := fmtString1(result["visibility"])
+    defaultBranch := fmtString1(result["default_branch"])
+    lang := fmtString1(result["language"], mapStringField(result, "language", "name"))
     lastUpdated := prettyTimeShort(result["last_updated"])
-    isEmpty := fmtString(result["is_empty"])
+    isEmpty := fmtString1(result["is_empty"])
     cloneURL := ""
     if cu, ok := result["clone_url"].(map[string]any); ok {
-        cloneURL = fmtString(cu["https"], cu["ssh"])
+        cloneURL = fmtString1(cu["https"], cu["ssh"])
     }
     parent := ""
     if p, ok := result["parent"].(map[string]any); ok {
-        parent = fmtString(p["organization"], p["slug"], p["id"])
+        parent = fmtString1(p["organization"], p["slug"], p["id"])
     }
 
     fmt.Printf("%s\n", name)
@@ -304,7 +297,7 @@ func ViewRepoPretty(orgSlug, repoSlug string) {
     fmt.Println()
 }
 
-func fmtString(vals ...any) string {
+func fmtString1(vals ...any) string {
     for _, v := range vals {
         if v == nil {
             continue

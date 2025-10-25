@@ -250,43 +250,6 @@ func fmtString(vals ...any) string {
 	return ""
 }
 
-func prettyTimeShortAny(vals ...any) string {
-	for _, v := range vals {
-		if v == nil {
-			continue
-		}
-		if s, ok := v.(string); ok && s != "" {
-			if t, err := time.Parse(time.RFC3339, s); err == nil {
-				return t.Format("2006-01-02")
-			}
-			return s
-		}
-	}
-	return ""
-}
-
-func indent(s string, spaces int) string {
-	if s == "" {
-		return ""
-	}
-	pad := strings.Repeat(" ", spaces)
-	lines := strings.Split(strings.TrimRight(s, "\n"), "\n")
-	for i := range lines {
-		lines[i] = pad + lines[i]
-	}
-	return strings.Join(lines, "\n")
-}
-
-func truncate(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	if n <= 3 {
-		return s[:n]
-	}
-	return s[:n-3] + "..."
-}
-
 func float64From(v any) float64 {
 	switch t := v.(type) {
 	case float64:

@@ -100,23 +100,23 @@ func extractCodeItems(resp map[string]any) []codeHit {
     for _, it := range arr {
         if m, ok := it.(map[string]any); ok {
             h := codeHit{
-                Repo:      fmtString(m["repo"], m["repository"], m["repo_slug"]),
-                FilePath:  fmtString(m["path"], m["file"], m["file_path"]),
-                Language:  fmtString(m["language"]),
-                CommitID:  fmtString(m["commit"], m["commit_id"]),
-                UpdatedAt: fmtString(m["updated_at"], m["last_updated"]),
+                Repo:      fmtString2(m["repo"], m["repository"], m["repo_slug"]),
+                FilePath:  fmtString2(m["path"], m["file"], m["file_path"]),
+                Language:  fmtString2(m["language"]),
+                CommitID:  fmtString2(m["commit"], m["commit_id"]),
+                UpdatedAt: fmtString2(m["updated_at"], m["last_updated"]),
                 Score:     float64From(m["score"]),
             }
             // preview/snippet fields
-            h.Preview = fmtString(m["preview"], m["snippet"], m["line_preview"], m["context"])
+            h.Preview = fmtString2(m["preview"], m["snippet"], m["line_preview"], m["context"])
             if ln, ok := numberFromAny(m["line"]); ok {
                 h.Line = ln
             } else if ln2, ok := numberFromAny(m["line_number"]); ok {
                 h.Line = ln2
             }
             // context
-            h.ContextLeft = fmtString(m["context_left"], m["before"])
-            h.ContextRight = fmtString(m["context_right"], m["after"])
+            h.ContextLeft = fmtString2(m["context_left"], m["before"])
+            h.ContextRight = fmtString2(m["context_right"], m["after"])
             out = append(out, h)
         }
     }
@@ -127,12 +127,12 @@ func tryCoerceSingleResult(m map[string]any) []codeHit {
     // if response itself contains file-like keys, return single item
     if _, hasPath := m["path"]; hasPath || m["file"] != nil {
         h := codeHit{
-            Repo:      fmtString(m["repo"], m["repository"]),
-            FilePath:  fmtString(m["path"], m["file"]),
-            Preview:   fmtString(m["preview"], m["snippet"], m["content"]),
-            Language:  fmtString(m["language"]),
-            CommitID:  fmtString(m["commit"], m["commit_id"]),
-            UpdatedAt: fmtString(m["updated_at"], m["last_updated"]),
+            Repo:      fmtString2(m["repo"], m["repository"]),
+            FilePath:  fmtString2(m["path"], m["file"]),
+            Preview:   fmtString2(m["preview"], m["snippet"], m["content"]),
+            Language:  fmtString2(m["language"]),
+            CommitID:  fmtString2(m["commit"], m["commit_id"]),
+            UpdatedAt: fmtString2(m["updated_at"], m["last_updated"]),
             Score:     float64From(m["score"]),
         }
         if ln, ok := numberFromAny(m["line"]); ok {
@@ -163,7 +163,7 @@ func printCodeHit(h codeHit, query string) {
     }
     fmt.Printf("%s/%s%s%s\n", h.Repo, loc, lineStr, lang)
     if h.CommitID != "" {
-        fmt.Printf("  commit: %s", shortID(h.CommitID))
+        fmt.Printf("  commit: %s", ShortID(h.CommitID))
     }
     if h.UpdatedAt != "" {
         fmt.Printf("  updated: %s", prettyTimeShortAny(h.UpdatedAt))
@@ -209,20 +209,11 @@ func printSnippetWithHighlight(s, query string) {
         lnH := re.ReplaceAllStringFunc(ln, func(m string) string {
             return strings.ToUpper(m)
         })
-        fmt.Println(prefix + truncate(lnH, 200))
+        fmt.Println(prefix + TruncateString(lnH, 200))
     }
 }
 
-// small helpers reused across package
-
-func shortID(id string) string {
-    if len(id) > 8 {
-        return id[:8]
-    }
-    return id
-}
-
-func fmtString(vals ...any) string {
+func fmtString2(vals ...any) string {
     for _, v := range vals {
         if v == nil {
             continue

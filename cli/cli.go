@@ -91,3 +91,5 @@ func ToJson(m map[string] any) (string, error) {
 
     return string(b), nil
 }
+
+func HelpIfEmpty() {}
