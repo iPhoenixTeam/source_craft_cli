@@ -1,0 +1,179 @@
+```
+package cli
+
+import (
+    "fmt"
+    "strings"
+    "time"
+)
+
+func printMilestoneLine(id, title, state, due string) {
+    // id (short) | state | due | title
+    shortID := id
+    if len(id) > 8 {
+        shortID = id[:8]
+    }
+    stateSym := stateSymbol(state)
+    dueStr := due
+    if dueStr == "" {
+        dueStr = "no due date"
+    }
+    fmt.Printf("%s %s  %-10s  %s\n", shortID, stateSym, dueStr, title)
+}
+
+func stateSymbol(state string) string {
+    switch strings.ToLower(state) {
+    case "open", "opened":
+        return "○"
+    case "closed", "done":
+        return "●"
+    default:
+        return "·"
+    }
+}
+
+// ListMilestonesPretty делает запрос и печатает аккуратно отформатированный список
+func ListMilestonesPretty(orgSlug, repoSlug string) {
+    path := fmt.Sprintf("repos/%s/%s/milestones", orgSlug, repoSlug)
+    raw, err := Execute1("GET", path, nil)
+    Ensure(err)
+
+    // Попробуем извлечь массив из разных форматов ответа
+    var items []any
+    if arr, ok := raw["items"].([]any); ok && len(arr) > 0 {
+        items = arr
+    } else if data, ok := raw["data"].([]any); ok && len(data) > 0 {
+        items = data
+    } else if arrAll, ok := raw["milestones"].([]any); ok && len(arrAll) > 0 {
+        items = arrAll
+    } else {
+        // возможно сам результат — массив (Execute1 мог вернуть map с числовыми ключами)
+        // попытка привести raw к []any через ToJson+reparse опущена как неэффективная
+        fmt.Println(ToJson(raw))
+        return
+    }
+
+    // Заголовок
+    fmt.Printf("Milestones for %s/%s\n\n", orgSlug, repoSlug)
+
+    // Вывод строк
+    for _, it := range items {
+        m, ok := it.(map[string]any)
+        if !ok {
+            continue
+        }
+        id := fmtString(m["id"])
+        title := fmtString(m["title"])
+        state := fmtString(m["status"], m["state"], m["status_slug"])
+        due := parseDateFromMap(m, "deadline", "due_date", "due")
+        printMilestoneLine(id, title, state, due)
+    }
+}
+
+// ViewMilestonePretty показывает подробную карточку вехи в стиле git-issue
+func ViewMilestonePretty(orgSlug, repoSlug, milestoneSlug string) {
+    path := fmt.Sprintf("repos/%s/%s/milestones/%s", orgSlug, repoSlug, milestoneSlug)
+    result, err := Execute1("GET", path, nil)
+    Ensure(err)
+
+    // поля
+    id := fmtString(result["id"])
+    title := fmtString(result["title"])
+    description := fmtString(result["description"], result["body"])
+    state := fmtString(result["status"], result["state"], result["status_slug"])
+    created := fmtString(result["created_at"], result["created"])
+    updated := fmtString(result["updated_at"], result["updated"])
+    due := parseDateFromMap(result, "deadline", "due_date", "due")
+
+    // Header (title line + meta)
+    stateTag := strings.ToUpper(state)
+    fmt.Printf("%s (%s)\n", title, stateTag)
+    fmt.Printf("milestone %s\n\n", id)
+
+    if description != "" {
+        fmt.Println(indentMultiline(description, 2))
+        fmt.Println()
+    }
+
+    fmt.Printf("Created: %s\n", prettyTime(created))
+    if updated != "" && updated != created {
+        fmt.Printf("Updated: %s\n", prettyTime(updated))
+    }
+    if due != "" {
+        fmt.Printf("Due: %s\n", due)
+    }
+    // Сводка: issues counts
+    if openCount, ok := numberFrom(result["open_issues_count"]); ok {
+        if closedCount, ok2 := numberFrom(result["closed_issues_count"]); ok2 {
+            fmt.Printf("Issues: %d open, %d closed\n", openCount, closedCount)
+        } else {
+            fmt.Printf("Issues open: %d\n", openCount)
+        }
+    }
+}
+
+// Вспомогательные функции
+
+func fmtString(vals ...any) string {
+    for _, v := range vals {
+        if v == nil {
+            continue
+        }
+        if s, ok := v.(string); ok && s != "" {
+            return s
+        }
+    }
+    return ""
+}
+
+func parseDateFromMap(m map[string]any, keys ...string) string {
+    for _, k := range keys {
+        if v, ok := m[k]; ok && v != nil {
+            if s, ok := v.(string); ok && s != "" {
+                // попытка привести к читаемому формату
+                if t, err := time.Parse(time.RFC3339, s); err == nil {
+                    return t.Format("2006-01-02")
+                }
+                return s
+            }
+        }
+    }
+    return ""
+}
+
+func prettyTime(s string) string {
+    if s == "" {
+        return ""
+    }
+    if t, err := time.Parse(time.RFC3339, s); err == nil {
+        // "Jan 02 2006" like git
+        return t.Format("Jan 02 2006")
+    }
+    return s
+}
+
+func indentMultiline(s string, indent int) string {
+    pad := strings.Repeat(" ", indent)
+    lines := strings.Split(strings.TrimRight(s, "\n"), "\n")
+    for i := range lines {
+        lines[i] = pad + lines[i]
+    }
+    return strings.Join(lines, "\n")
+}
+
+func numberFrom(v any) (int, bool) {
+    switch n := v.(type) {
+    case int:
+        return n, true
+    case int64:
+        return int(n), true
+    case float64:
+        return int(n), true
+    case float32:
+        return int(n), true
+    default:
+        return 0, false
+    }
+}
+
+```

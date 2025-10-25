@@ -1,0 +1,214 @@
+package cli
+
+import (
+    "fmt"
+    "strings"
+)
+
+// AccessUser performs management actions for repository users.
+// action may be: "list", "add", "remove", "get" (best-effort, maps to common API shapes)
+func AccessUser(orgSlug, repoSlug, action string, args ...string) {
+    if orgSlug == "" || repoSlug == "" {
+        Ensure(fmt.Errorf("repository not specified"))
+    }
+    action = strings.ToLower(action)
+    switch action {
+    case "list", "ls":
+        path := fmt.Sprintf("repos/%s/%s/roles", orgSlug, repoSlug)
+        resp, err := Execute1("GET", path, nil)
+        Ensure(err)
+        printRolesList(resp)
+    case "add", "grant":
+        // args: userSlug role
+        if len(args) < 2 {
+            Ensure(fmt.Errorf("usage: src access user add <user> <role>"))
+        }
+        user := args[0]
+        role := args[1]
+        body := map[string]any{
+            "subjects": []map[string]any{
+                {"type": "user", "slug": user},
+            },
+            "roles": []string{role},
+        }
+        path := fmt.Sprintf("repos/%s/%s/roles", orgSlug, repoSlug)
+        res, err := Execute("POST", path, body)
+        Ensure(err)
+        fmt.Printf("Granted role %s to %s\n", role, user)
+        if ToJson(res) != "" {
+            fmt.Println(truncate(ToJson(res), 400))
+        }
+    case "remove", "revoke":
+        // args: userSlug role (role optional)
+        if len(args) < 1 {
+            Ensure(fmt.Errorf("usage: src access user remove <user> [role]"))
+        }
+        user := args[0]
+        role := ""
+        if len(args) >= 2 {
+            role = args[1]
+        }
+        // API supports remove by subjects + roles or by dedicated remove endpoint
+        body := map[string]any{
+            "subjects": []map[string]any{
+                {"type": "user", "slug": user},
+            },
+        }
+        if role != "" {
+            body["roles"] = []string{role}
+        }
+        path := fmt.Sprintf("repos/%s/%s/roles/remove", orgSlug, repoSlug)
+        res, err := Execute("POST", path, body)
+        Ensure(err)
+        if role != "" {
+            fmt.Printf("Removed role %s from %s\n", role, user)
+        } else {
+            fmt.Printf("Removed all roles for %s\n", user)
+        }
+        if ToJson(res) != "" {
+            fmt.Println(truncate(ToJson(res), 400))
+        }
+    case "get":
+        // args: userSlug
+        if len(args) < 1 {
+            Ensure(fmt.Errorf("usage: src access user get <user>"))
+        }
+        user := args[0]
+        // try listing roles and filter by subject
+        path := fmt.Sprintf("repos/%s/%s/roles", orgSlug, repoSlug)
+        resp, err := Execute1("GET", path, nil)
+        Ensure(err)
+        if items := extractArrayCandidates(resp, "roles", "items", "data"); len(items) > 0 {
+            fmt.Printf("Roles for %s in %s/%s:\n", user, orgSlug, repoSlug)
+            for _, it := range items {
+                if mm, ok := it.(map[string]any); ok {
+                    if subs, ok := mm["subjects"].([]any); ok {
+                        for _, s := range subs {
+                            if sm, ok := s.(map[string]any); ok {
+                                if fmtString(sm["slug"], sm["id"]) == user {
+                                    fmt.Printf("  - %s\n", fmtString(mm["role"], mm["name"], mm["slug"]))
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } else {
+            fmt.Println("No roles found")
+        }
+    default:
+        Ensure(fmt.Errorf("unknown action %q. supported: list|add|remove|get", action))
+    }
+}
+
+// AccessInvite sends an invitation to an email to join the organization or repository.
+// optional role can be provided in args[0]
+func AccessInvite(orgSlug, repoSlug, email string, args ...string) {
+    if orgSlug == "" || repoSlug == "" {
+        Ensure(fmt.Errorf("repository not specified"))
+    }
+    if email == "" {
+        Ensure(fmt.Errorf("email is empty"))
+    }
+    role := ""
+    if len(args) > 0 {
+        role = args[0]
+    }
+    // try org-level invite then repo-level invite (best-effort)
+    body := map[string]any{
+        "email": email,
+    }
+    if role != "" {
+        body["role"] = role
+    }
+    // prefer repo scoped invite if API supports it
+    pathRepo := fmt.Sprintf("repos/%s/%s/invitations", orgSlug, repoSlug)
+    res, err := Execute("POST", pathRepo, body)
+    if err == nil {
+        fmt.Printf("Invitation sent to %s for %s/%s\n", email, orgSlug, repoSlug)
+        if ToJson(res) != "" {
+            fmt.Println(truncate(ToJson(res), 400))
+        }
+        return
+    }
+    // fallback to org invite
+    pathOrg := fmt.Sprintf("orgs/%s/invitations", orgSlug)
+    res2, err2 := Execute("POST", pathOrg, body)
+    Ensure(err2)
+    fmt.Printf("Invitation sent to %s for org %s\n", email, orgSlug)
+    if ToJson(res2) != "" {
+        fmt.Println(truncate(ToJson(res2), 400))
+    }
+}
+
+// AccessRole assigns or updates roles for a subject (user/team/bot).
+// usage: AccessRole(org, repo, subject, role, action) where action is "add" or "remove"
+func AccessRole(orgSlug, repoSlug, subject, role, action string) {
+    if orgSlug == "" || repoSlug == "" {
+        Ensure(fmt.Errorf("repository not specified"))
+    }
+    if subject == "" || role == "" {
+        Ensure(fmt.Errorf("usage: src access role <user> <role>"))
+    }
+    action = strings.ToLower(action)
+    switch action {
+    case "add", "grant":
+        body := map[string]any{
+            "subjects": []map[string]any{
+                {"type": "user", "slug": subject},
+            },
+            "roles": []string{role},
+        }
+        path := fmt.Sprintf("repos/%s/%s/roles", orgSlug, repoSlug)
+        res, err := Execute("POST", path, body)
+        Ensure(err)
+        fmt.Printf("Assigned role %s to %s\n", role, subject)
+        if ToJson(res) != "" {
+            fmt.Println(truncate(ToJson(res), 300))
+        }
+    case "remove", "revoke":
+        body := map[string]any{
+            "subjects": []map[string]any{
+                {"type": "user", "slug": subject},
+            },
+            "roles": []string{role},
+        }
+        path := fmt.Sprintf("repos/%s/%s/roles/remove", orgSlug, repoSlug)
+        res, err := Execute("POST", path, body)
+        Ensure(err)
+        fmt.Printf("Removed role %s from %s\n", role, subject)
+        if ToJson(res) != "" {
+            fmt.Println(truncate(ToJson(res), 300))
+        }
+    default:
+        Ensure(fmt.Errorf("unknown action %q for role management (use add/remove)", action))
+    }
+}
+
+/* --- small printers/helpers reused --- */
+
+func printRolesList(resp map[string]any) {
+    items := extractArrayCandidates(resp, "roles", "items", "data")
+    if len(items) == 0 {
+        fmt.Println("(no roles)")
+        return
+    }
+    for _, it := range items {
+        if m, ok := it.(map[string]any); ok {
+            roleName := fmtString(m["role"], m["name"], m["slug"])
+            fmt.Printf("Role: %s\n", roleName)
+            if subs, ok := m["subjects"].([]any); ok && len(subs) > 0 {
+                fmt.Println("  Subjects:")
+                for _, s := range subs {
+                    switch sm := s.(type) {
+                    case map[string]any:
+                        fmt.Printf("    - %s (%s)\n", fmtString(sm["slug"], sm["id"]), fmtString(sm["type"]))
+                    default:
+                        fmt.Printf("    - %v\n", s)
+                    }
+                }
+            }
+            fmt.Println()
+        }
+    }
+}

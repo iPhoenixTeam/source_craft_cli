@@ -1,0 +1,150 @@
+package cli
+
+import (
+    "encoding/json"
+    "fmt"
+    "os"
+    "path/filepath"
+)
+
+const (
+    appConfigDir  = "srccli"
+    configRelFile = "config.json"
+)
+
+type CLIConfig struct {
+    AuthToken string            `json:"auth_token,omitempty"`
+    Settings  map[string]string `json:"settings,omitempty"`
+}
+
+func AuthLogin(token string) {
+    if token == "" {
+        Ensure(fmt.Errorf("token is empty"))
+    }
+    cfg, err := loadConfig()
+    Ensure(err)
+
+    cfg.AuthToken = token
+
+    if cfg.Settings == nil {
+        cfg.Settings = make(map[string]string)
+    }
+
+    Ensure(saveConfig(cfg))
+    fmt.Println("Logged in")
+}
+
+func AuthLogout() {
+    cfg, err := loadConfig()
+    if err != nil {
+        // if config not found treat as already logged out
+        if os.IsNotExist(err) {
+            fmt.Println("Already logged out")
+            return
+        }
+        Ensure(err)
+    }
+
+    cfg.AuthToken = ""
+    Ensure(saveConfig(cfg))
+    fmt.Println("Logged out")
+}
+
+func ConfigSet(key, value string) {
+    if key == "" {
+        Ensure(fmt.Errorf("key is empty"))
+    }
+    cfg, err := loadConfig()
+    Ensure(err)
+
+    if cfg.Settings == nil {
+        cfg.Settings = make(map[string]string)
+    }
+    cfg.Settings[key] = value
+
+    Ensure(saveConfig(cfg))
+    fmt.Printf("Config %s set to %s\n", key, value)
+}
+
+func ConfigGet(key string) {
+    cfg, err := loadConfig()
+    Ensure(err)
+
+    if key == "" {
+        // print full config
+        b, _ := json.MarshalIndent(cfg, "", "  ")
+        fmt.Println(string(b))
+        return
+    }
+    if cfg.Settings == nil {
+        fmt.Println("")
+        return
+    }
+    if v, ok := cfg.Settings[key]; ok {
+        fmt.Println(v)
+        return
+    }
+    // not found -> empty output
+    fmt.Println("")
+}
+
+/* --- config file helpers --- */
+
+func configFilePath() (string, error) {
+    dir, err := os.UserConfigDir()
+    if err != nil {
+        return "", err
+    }
+    appDir := filepath.Join(dir, appConfigDir)
+    if err := os.MkdirAll(appDir, 0o700); err != nil {
+        return "", err
+    }
+    return filepath.Join(appDir, configRelFile), nil
+}
+
+func loadConfig() (*CLIConfig, error) {
+    path, err := configFilePath()
+    if err != nil {
+        return nil, err
+    }
+    f, err := os.Open(path)
+    if err != nil {
+        return &CLIConfig{Settings: make(map[string]string)}, err
+    }
+    defer f.Close()
+
+    var cfg CLIConfig
+    dec := json.NewDecoder(f)
+    if err := dec.Decode(&cfg); err != nil {
+        // if decode fails, return empty config and the error (caller will Ensure)
+        return &CLIConfig{Settings: make(map[string]string)}, err
+    }
+    if cfg.Settings == nil {
+        cfg.Settings = make(map[string]string)
+    }
+    return &cfg, nil
+}
+
+func saveConfig(cfg *CLIConfig) error {
+    path, err := configFilePath()
+    if err != nil {
+        return err
+    }
+    tmp := path + ".tmp"
+    f, err := os.OpenFile(tmp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o600)
+    if err != nil {
+        return err
+    }
+    enc := json.NewEncoder(f)
+    enc.SetIndent("", "  ")
+    if err := enc.Encode(cfg); err != nil {
+        f.Close()
+        _ = os.Remove(tmp)
+        return err
+    }
+    if err := f.Close(); err != nil {
+        _ = os.Remove(tmp)
+        return err
+    }
+    return os.Rename(tmp, path)
+}

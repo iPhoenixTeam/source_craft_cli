@@ -1,0 +1,59 @@
+package cli
+
+import "fmt"
+
+type IssueVisibility string
+
+const (
+	IssuePublic IssueVisibility = "public"
+	IssuePrivate IssueVisibility = "private"
+)
+
+func ListIssues() {
+    result, err := Execute1("GET", "me/issues", nil)
+    Ensure(err)
+    fmt.Println(ToJson(result))
+}
+
+func CreateIssue(orgSlug, repoSlug, issueTitle string, visibility IssueVisibility, createReadme bool) {
+    body := map[string] any{
+        "title":      issueTitle,
+        "visibility": visibility,
+    }
+    if createReadme {
+        body["properties"] = map[string]any{
+            "create_readme": true,
+        }
+    }
+    path := fmt.Sprintf("repos/%s/%s/issues", orgSlug, repoSlug)
+    result, err := Execute1("POST", path, body)
+    Ensure(err)
+    fmt.Println(ToJson(result))
+}
+
+func ViewIssue(orgSlug, repoSlug, issueSlug string) {
+    path := fmt.Sprintf("repos/%s/%s/issues/%s", orgSlug, repoSlug, issueSlug)
+    result, err := Execute1("GET", path, nil)
+    Ensure(err)
+    fmt.Println(ToJson(result))
+}
+
+func UpdateIssue(orgSlug, repoSlug, issueSlug string, fields map[string] any) {
+    if fields == nil {
+        fields = make(map[string]any)
+    }
+    path := fmt.Sprintf("repos/%s/%s/issues/%s", orgSlug, repoSlug, issueSlug)
+    result, err := Execute1("PATCH", path, fields)
+    Ensure(err)
+    fmt.Println(ToJson(result))
+}
+
+func CloseIssue(orgSlug, repoSlug, issueSlug string) {
+    body := map[string]any{
+        "status_slug": "closed",
+    }
+    path := fmt.Sprintf("repos/%s/%s/issues/%s", orgSlug, repoSlug, issueSlug)
+    result, err := Execute1("PATCH", path, body)
+    Ensure(err)
+    fmt.Println(ToJson(result))
+}
