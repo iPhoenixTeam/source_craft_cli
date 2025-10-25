@@ -7,16 +7,18 @@ import (
 	"phoenix.team/src/cli"
 )
 
+var Version = "1.0.0"
+
 func main() {
 	cmd := os.Args[1]
 	
 	switch cmd {
 		case "repo":
-			
-		}	
+			cli.ExecuteRepo(os.Args[2])
 		case "issue":
+			cli.ExecuteIssue(os.Args[2], )
 
-	default:
+		default:
 		fmt.Println("Unknown command")
 		os.Exit(1)
 	}

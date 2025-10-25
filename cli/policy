@@ -1,6 +1,3 @@
-### policy and review rules
-
-```go
 package cli
 
 import (
@@ -8,6 +5,25 @@ import (
 	"strings"
 	"time"
 )
+
+func DispatchPolicy(command string, args... string) {
+	switch command {
+		case "list":
+			requireArgs(args, 1, "")
+			ListRepo(args[3])
+		case "create":
+			requireArgs(args, 3, "")
+			CreateRepo(args[3], args[4], args[4], "", RepoPublic, false)
+		case "fork":
+			requireArgs(args, 3, "")
+			ForkRepo(args[3], args[4], args[5], true)
+		case "view":
+			requireArgs(args, 2, "")
+			ViewRepo(args[3], args[4])
+		default:
+			//help
+	}
+}
 
 func PolicyView(orgSlug, repoSlug string) {
 	path := fmt.Sprintf("repos/%s/%s/branch_policies", orgSlug, repoSlug)
@@ -240,4 +256,3 @@ func prettyTimeShortAny(vals ...any) string {
 	}
 	return ""
 }
-```

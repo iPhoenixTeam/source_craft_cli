@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"sort"
 	"strings"
-	"time"
 )
 
 func StatsRepo(orgSlug, repoSlug string) {
@@ -44,8 +43,8 @@ func ReportSecurity(orgSlug, repoSlug string, topN int) {
 func printRepoStats(m map[string]any) {
 	name := fmtString(m["name"], m["slug"])
 	lang := fmtString(m["language"])
-	created := prettyTimeShortAny(m["created_at"], m["created"])
-	updated := prettyTimeShortAny(m["last_updated"], m["updated_at"])
+	created := prettyTimeShortAny(m["created_at"])
+	updated := prettyTimeShortAny(m["last_updated"])
 
 	fmt.Printf("%s\n", name)
 	fmt.Printf("repo %s\n\n", fmtString(m["id"], m["slug"]))

@@ -139,7 +139,6 @@ func ListMilestonesPretty(orgSlug, repoSlug string) {
     }
 }
 
-// ViewMilestonePretty показывает подробную карточку вехи в стиле git-issue
 func ViewMilestonePretty(orgSlug, repoSlug, milestoneSlug string) {
     path := fmt.Sprintf("repos/%s/%s/milestones/%s", orgSlug, repoSlug, milestoneSlug)
     result, err := Execute1("GET", path, nil)

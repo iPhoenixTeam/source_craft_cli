@@ -87,8 +87,6 @@ func ConfigGet(key string) {
     fmt.Println("")
 }
 
-
-
 func configFilePath() (string, error) {
     dir, err := os.UserConfigDir()
     if err != nil {

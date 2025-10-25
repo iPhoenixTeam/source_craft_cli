@@ -1,6 +1,9 @@
 package cli
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 func TruncateString(s string, n int) string {
 	if len(s) <= n {
@@ -51,4 +54,10 @@ func IndentMultilineString(s string, indent int) string {
         lines[i] = pad + lines[i]
     }
     return strings.Join(lines, "\n")
+}
+
+func requireArgs(args []string, want int, usage string) {
+    if len(args) < want {
+        Ensure(fmt.Errorf("usage: %s", usage))
+    }
 }

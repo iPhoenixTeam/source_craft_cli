@@ -6,25 +6,27 @@ import (
 	"time"
 )
 
-func ExecutePr(command string, args... string) {
+func DispatchPr(command string, args... string) {
 	switch command {
 		case "list":
-			ListRepo(args[3])
+			requireArgs(args, 1, "")
+			ListPr(args[3])
 		case "create":
-			CreateRepo(args[3], args[4], args[4], "", RepoPublic, false)
+			requireArgs(args, 3, "")
+			CreatePr(args[3], args[4], args[4], "", RepoPublic, false)
 		case "view":
-			ViewRepo(args[3], args[4])
+			requireArgs(args, 2, "")
+			ViewPr(args[3], args[4])
 		case "merge":
-			ViewRepo(args[3], args[4])
+			requireArgs(args, 2, "")
+			MergePr(args[3], args[4])
 		default:
 			//help
 	}
 }
 
-
-// ListPRs lists pull requests for a repository or user (tries several endpoints)
-func ListPRs(orgSlug, repoSlug, filter string, pageSize int, pageToken string) {
-	path := candidatePRListPath(orgSlug, repoSlug)
+func ListPr(orgSlug, repoSlug, filter string, pageSize int, pageToken string) {
+	path := candidatePrListPath(orgSlug, repoSlug)
 	q := map[string]any{}
 	if filter != "" {
 		q["filter"] = filter
@@ -82,8 +84,8 @@ func ListPRs(orgSlug, repoSlug, filter string, pageSize int, pageToken string) {
 	}
 }
 
-// CreatePR creates a pull request in the specified repository
-func CreatePR(orgSlug, repoSlug, title, body, sourceBranch, targetBranch string, reviewers []string, silent bool) {
+// CreatePr creates a pull request in the specified repository
+func CreatePr(orgSlug, repoSlug, title, body, sourceBranch, targetBranch string, reviewers []string, silent bool) {
 	if orgSlug == "" || repoSlug == "" {
 		Ensure(fmt.Errorf("repo not specified"))
 	}
@@ -111,8 +113,8 @@ func CreatePR(orgSlug, repoSlug, title, body, sourceBranch, targetBranch string,
 	}
 }
 
-// ViewPR prints detailed information about a single pull request
-func ViewPR(orgSlug, repoSlug, prSlug string) {
+// ViewPr prints detailed information about a single pull request
+func ViewPr(orgSlug, repoSlug, prSlug string) {
 	path := ""
 	if orgSlug != "" && repoSlug != "" {
 		path = fmt.Sprintf("repos/%s/%s/pulls/%s", orgSlug, repoSlug, prSlug)
@@ -194,8 +196,8 @@ func ViewPR(orgSlug, repoSlug, prSlug string) {
 	}
 }
 
-// MergePR merges a pull request using either merge method or auto detection
-func MergePR(orgSlug, repoSlug, prSlug, method string, squash bool, deleteBranch bool) {
+// MergePr merges a pull request using either merge method or auto detection
+func MergePr(orgSlug, repoSlug, prSlug, method string, squash bool, deleteBranch bool) {
 	if orgSlug == "" || repoSlug == "" {
 		Ensure(fmt.Errorf("repo not specified"))
 	}
@@ -235,7 +237,7 @@ func MergePR(orgSlug, repoSlug, prSlug, method string, squash bool, deleteBranch
 
 /* --- small helpers reused across package --- */
 
-func candidatePRListPath(orgSlug, repoSlug string) string {
+func candidatePrListPath(orgSlug, repoSlug string) string {
 	if orgSlug != "" && repoSlug != "" {
 		return fmt.Sprintf("repos/%s/%s/pulls", orgSlug, repoSlug)
 	}

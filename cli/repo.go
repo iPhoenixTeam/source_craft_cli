@@ -17,16 +17,20 @@ const (
 	RepoPrivate  RepoVisibility = "private"
 )
 
-func ExecuteRepo(command string, args... string) {
+func DispatchRepo(command string, args... string) {
 
 	switch command {
 		case "list":
+			requireArgs(args, 1, "")
 			ListRepo(args[3])
 		case "create":
+			requireArgs(args, 3, "")
 			CreateRepo(args[3], args[4], args[4], "", RepoPublic, false)
 		case "fork":
+			requireArgs(args, 3, "")
 			ForkRepo(args[3], args[4], args[5], true)
 		case "view":
+			requireArgs(args, 2, "")
 			ViewRepo(args[3], args[4])
 		default:
 			//help
