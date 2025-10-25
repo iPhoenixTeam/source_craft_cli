@@ -1,4 +1,3 @@
-```go
 package cli
 
 import (
@@ -244,10 +243,10 @@ func HandleHelpFromArgs() {
 	// find if last token is --help
 	if args[len(args)-1] == "--help" || args[len(args)-1] == "-h" {
 		// drop the --help token and call Help with remaining tokens
-		Help(args[:len(args)-1])
+		l := len(args)
+		Help(args[:l-1])
 		return
 	}
 	// otherwise not a help invocation
 	PrintGeneralHelp()
 }
-```

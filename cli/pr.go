@@ -2,24 +2,29 @@ package cli
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
-	"time"
 )
 
 func DispatchPr(command string, args... string) {
 	switch command {
 		case "list":
-			requireArgs(args, 1, "")
-			ListPr(args[3])
+			requireArgs(args, 5, "")
+			size, _ := strconv.Atoi(args[3])
+			ListPr(args[0], args[1], args[2], size, args[4])
 		case "create":
-			requireArgs(args, 3, "")
-			CreatePr(args[3], args[4], args[4], "", RepoPublic, false)
+			requireArgs(args, 5, "")
+			CreatePr(args[0], args[1], args[2], args[3], args[4], false)
 		case "view":
-			requireArgs(args, 2, "")
-			ViewPr(args[3], args[4])
+			requireArgs(args, 3, "")
+			ViewPr(args[0], args[1], args[2])
 		case "merge":
-			requireArgs(args, 2, "")
-			MergePr(args[3], args[4])
+			requireArgs(args, 6, "")
+			squash, err := strconv.ParseBool(args[4])
+			Ensure(err)
+			deleteBranch, err := strconv.ParseBool(args[5])
+			Ensure(err)
+			MergePr(args[0], args[1], args[2], args[3], squash, deleteBranch)
 		default:
 			//help
 	}
@@ -84,23 +89,18 @@ func ListPr(orgSlug, repoSlug, filter string, pageSize int, pageToken string) {
 	}
 }
 
-// CreatePr creates a pull request in the specified repository
-func CreatePr(orgSlug, repoSlug, title, body, sourceBranch, targetBranch string, reviewers []string, silent bool) {
+func CreatePr(orgSlug, repoSlug, title, sourceBranch, targetBranch string, silent bool) {
 	if orgSlug == "" || repoSlug == "" {
 		Ensure(fmt.Errorf("repo not specified"))
 	}
 	path := fmt.Sprintf("repos/%s/%s/pulls", orgSlug, repoSlug)
 	payload := map[string]any{
 		"title":         title,
-		"description":   body,
 		"source_branch": sourceBranch,
 		"target_branch": targetBranch,
 	}
-	if len(reviewers) > 0 {
-		payload["reviewers"] = reviewers
-	}
+
 	if silent {
-		// some APIs accept silent or notify flag as query param
 		_, err := Execute1("POST", path+"?silent=true", payload)
 		Ensure(err)
 	} else {
@@ -113,7 +113,6 @@ func CreatePr(orgSlug, repoSlug, title, body, sourceBranch, targetBranch string,
 	}
 }
 
-// ViewPr prints detailed information about a single pull request
 func ViewPr(orgSlug, repoSlug, prSlug string) {
 	path := ""
 	if orgSlug != "" && repoSlug != "" {

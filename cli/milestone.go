@@ -2,6 +2,7 @@ package cli
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -16,63 +17,51 @@ const (
 func ExecuteMilestone(command string, args... string) {
     switch command {
 		case "list":
-			ListMilestones(args[3])
+            i, err := strconv.ParseInt(args[5])
+            Ensure(err)
+                
+            ListMilestones(args[0], args[1], i, )
 		case "create":
-			CreateMilestone(args[3], args[4], args[4], "", MilestonePublic, false)
-		case "fork":
-			ForkMilestone(args[3], args[4], args[5], true)
+			CreateMilestone(args[0], args[1], args[2])
 		case "view":
-			ViewMilestone(args[3], args[4])
+			ViewMilestone(args[0], args[1], args[2])
 		default:
 			//help
 	}
 }
 
-func ListMilestones(orgSlug, repoSlug string, pageSize int, pageToken string) {
-    path := fmt.Sprintf("repos/%s/%s/milestones", orgSlug, repoSlug)
+func ListMilestones(orgSlug, repoSlug string, pageSize int64, pageToken string) {
     q := make(map[string]any)
+
     if pageSize > 0 {
         q["page_size"] = pageSize
     }
     if pageToken != "" {
         q["page_token"] = pageToken
     }
-    result, err := Execute1("GET", path, q)
+    result, err := Execute1("GET", fmt.Sprintf("repos/%s/%s/milestones", orgSlug, repoSlug), q)
     Ensure(err)
     fmt.Println(ToJson(result))
 }
 
-func CreateMilestone(orgSlug, repoSlug, name, description string, startDate, deadline time.Time, status MilestoneStatus) {
-    body := map[string]any{
-        "name":        name,
-        "description": description,
-    }
-    if !startDate.IsZero() {
-        body["start_date"] = startDate.Format(time.RFC3339)
-    }
-    if !deadline.IsZero() {
-        body["deadline"] = deadline.Format(time.RFC3339)
-    }
-    if status != "" {
-        body["status"] = string(status)
+func CreateMilestone(orgSlug, repoSlug, milestoneName string) {
+    body := map[string] any {
+        "name":        milestoneName,
     }
 
-    path := fmt.Sprintf("repos/%s/%s/milestones", orgSlug, repoSlug)
-    result, err := Execute1("POST", path, body)
+    result, err := Execute1("POST", fmt.Sprintf("repos/%s/%s/milestones", orgSlug, repoSlug), body)
     Ensure(err)
     fmt.Println(ToJson(result))
 }
 
 func ViewMilestoneByID(milestoneID string) {
-    path := fmt.Sprintf("milestones/id:%s", milestoneID)
-    result, err := Execute1("GET", path, nil)
+    result, err := Execute1("GET", fmt.Sprintf("milestones/id:%s", milestoneID), nil)
     Ensure(err)
     fmt.Println(ToJson(result))
 }
 
 func ViewMilestone(orgSlug, repoSlug, milestoneSlug string) {
-    path := fmt.Sprintf("repos/%s/%s/milestones/%s", orgSlug, repoSlug, milestoneSlug)
-    result, err := Execute1("GET", path, nil)
+    result, err := Execute1("GET", fmt.Sprintf("repos/%s/%s/milestones/%s", orgSlug, repoSlug, milestoneSlug), nil)
     Ensure(err)
     fmt.Println(ToJson(result))
 }
@@ -80,10 +69,7 @@ func ViewMilestone(orgSlug, repoSlug, milestoneSlug string) {
 
 func printMilestoneLine(id, title, state, due string) {
     // id (short) | state | due | title
-    shortID := id
-    if len(id) > 8 {
-        shortID = id[:8]
-    }
+    shortID := ShortID(id)
     stateSym := stateSymbol1(state)
     dueStr := due
     if dueStr == "" {
@@ -95,21 +81,19 @@ func printMilestoneLine(id, title, state, due string) {
 func stateSymbol1(state string) string {
     switch strings.ToLower(state) {
     case "open", "opened":
-        return "○"
+        return "○ open(ed)"
     case "closed", "done":
-        return "●"
+        return "● done"
     default:
         return "·"
     }
 }
 
-// ListMilestonesPretty делает запрос и печатает аккуратно отформатированный список
 func ListMilestonesPretty(orgSlug, repoSlug string) {
     path := fmt.Sprintf("repos/%s/%s/milestones", orgSlug, repoSlug)
     raw, err := Execute1("GET", path, nil)
     Ensure(err)
 
-    // Попробуем извлечь массив из разных форматов ответа
     var items []any
     if arr, ok := raw["items"].([]any); ok && len(arr) > 0 {
         items = arr

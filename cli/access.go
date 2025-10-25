@@ -30,7 +30,7 @@ func AccessUser(orgSlug, repoSlug, action string, args ...string) {
             "roles": []string{role},
         }
         path := fmt.Sprintf("repos/%s/%s/roles", orgSlug, repoSlug)
-        res, err := Execute("POST", path, body)
+        res, err := Execute1("POST", path, body)
         Ensure(err)
         fmt.Printf("Granted role %s to %s\n", role, user)
         res1, _ := ToJson(res)
@@ -57,7 +57,7 @@ func AccessUser(orgSlug, repoSlug, action string, args ...string) {
             body["roles"] = []string{role}
         }
         path := fmt.Sprintf("repos/%s/%s/roles/remove", orgSlug, repoSlug)
-        res, err := Execute("POST", path, body)
+        res, err := Execute1("POST", path, body)
         Ensure(err)
         if role != "" {
             fmt.Printf("Removed role %s from %s\n", role, user)
@@ -175,18 +175,17 @@ func AccessRole(orgSlug, repoSlug, subject, role, action string) {
             "roles": []string{role},
         }
         path := fmt.Sprintf("repos/%s/%s/roles/remove", orgSlug, repoSlug)
-        res, err := Execute("POST", path, body)
+        res, err := Execute1("POST", path, body)
         Ensure(err)
         fmt.Printf("Removed role %s from %s\n", role, subject)
-        if ToJson(res) != "" {
-            fmt.Println(TruncateString(ToJson(res), 300))
+        res2, _ := ToJson(res)
+        if res2 != "" {
+            fmt.Println(TruncateString(res2, 300))
         }
     default:
         Ensure(fmt.Errorf("unknown action %q for role management (use add/remove)", action))
     }
 }
-
-/* --- small printers/helpers reused --- */
 
 func printRolesList(resp map[string]any) {
     items := extractArrayCandidates(resp, "roles", "items", "data")

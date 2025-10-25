@@ -13,8 +13,22 @@ const (
 )
 
 type CLIConfig struct {
-    AuthToken string            `json:"auth_token,omitempty"`
-    Settings  map[string]string `json:"settings,omitempty"`
+    AuthToken string            
+    Settings  map[string]string
+}
+
+func DispatchAuth(command string, args... string) {
+
+	switch command {
+		case "login":
+			requireArgs(args, 1, "")
+			AuthLogin(args[0])
+		case "logout":
+			requireArgs(args, 0, "")
+			AuthLogout()
+		default:
+			//help
+	}
 }
 
 func AuthLogin(token string) {
