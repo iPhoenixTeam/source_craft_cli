@@ -8,7 +8,7 @@ import (
 
 func StatsRepo(orgSlug, repoSlug string) {
 	path := fmt.Sprintf("repos/%s/%s/stats", orgSlug, repoSlug)
-	result, err := Execute1("GET", path, nil)
+	result, err := DoRequest("GET", path, nil)
 	Ensure(err)
 
 	printRepoStats(result)
@@ -16,7 +16,7 @@ func StatsRepo(orgSlug, repoSlug string) {
 
 func StatsUser(userSlug string) {
 	path := fmt.Sprintf("users/%s/stats", userSlug)
-	result, err := Execute1("GET", path, nil)
+	result, err := DoRequest("GET", path, nil)
 	Ensure(err)
 
 	printUserStats(result)
@@ -24,7 +24,7 @@ func StatsUser(userSlug string) {
 
 func StatsSecurity(orgSlug, repoSlug string) {
 	path := fmt.Sprintf("repos/%s/%s/security/stats", orgSlug, repoSlug)
-	result, err := Execute1("GET", path, nil)
+	result, err := DoRequest("GET", path, nil)
 	Ensure(err)
 
 	printSecurityStats(result)
@@ -32,7 +32,7 @@ func StatsSecurity(orgSlug, repoSlug string) {
 
 func ReportSecurity(orgSlug, repoSlug string, topN int) {
 	path := fmt.Sprintf("repos/%s/%s/security/report", orgSlug, repoSlug)
-	result, err := Execute1("GET", path, nil)
+	result, err := DoRequest("GET", path, nil)
 	Ensure(err)
 
 	printSecurityReport(result, topN)

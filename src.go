@@ -17,6 +17,10 @@ func main() {
 			cli.DispatchRepo(os.Args[2], os.Args[3:])
 		case "issue":
 			cli.DispatchIssue(os.Args[2], os.Args[3:])
+		case "milestone":
+			cli.DispatchMilestone(os.Args[2], os.Args[3:])
+		case "workflow":
+			cli.DispatchWorkflow(os.Args[2], os.Args[3:])
 
 		default:
 		fmt.Println("Unknown command")

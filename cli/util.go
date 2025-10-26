@@ -1,7 +1,9 @@
 package cli
 
 import (
+	"flag"
 	"fmt"
+	"os"
 	"strings"
 )
 
@@ -56,8 +58,41 @@ func IndentMultilineString(s string, indent int) string {
     return strings.Join(lines, "\n")
 }
 
-func requireArgs(args []string, want int, usage string) {
-    if len(args) < want {
-        Ensure(fmt.Errorf("usage: %s", usage))
+func Require(fs *flag.FlagSet, want int, usage string) []string {
+    rem := fs.Args()
+    if len(rem) < want {
+        if usage != "" {
+            fmt.Println(usage)
+        } else {
+            fs.Usage()
+        }
+        os.Exit(0)
+    }
+    return rem
+}
+
+func MapStringField(m map[string]any, key, subkey string) string {
+    if v, ok := m[key]; ok && v != nil {
+        if mm, ok := v.(map[string]any); ok {
+            if s, ok := mm[subkey].(string); ok {
+                return s
+            }
+        }
+    }
+    return ""
+}
+
+func NumberFrom(v any) (int, bool) {
+    switch n := v.(type) {
+    case int:
+        return n, true
+    case int64:
+        return int(n), true
+    case float64:
+        return int(n), true
+    case float32:
+        return int(n), true
+    default:
+        return 0, false
     }
 }

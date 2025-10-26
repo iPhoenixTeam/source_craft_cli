@@ -13,7 +13,7 @@ func AccessUser(orgSlug, repoSlug, action string, args ...string) {
     switch action {
     case "list", "ls":
         path := fmt.Sprintf("repos/%s/%s/roles", orgSlug, repoSlug)
-        resp, err := Execute1("GET", path, nil)
+        resp, err := DoRequest("GET", path, nil)
         Ensure(err)
         printRolesList(resp)
     case "add", "grant":
@@ -30,7 +30,7 @@ func AccessUser(orgSlug, repoSlug, action string, args ...string) {
             "roles": []string{role},
         }
         path := fmt.Sprintf("repos/%s/%s/roles", orgSlug, repoSlug)
-        res, err := Execute1("POST", path, body)
+        res, err := DoRequest("POST", path, body)
         Ensure(err)
         fmt.Printf("Granted role %s to %s\n", role, user)
         res1, _ := ToJson(res)
@@ -57,7 +57,7 @@ func AccessUser(orgSlug, repoSlug, action string, args ...string) {
             body["roles"] = []string{role}
         }
         path := fmt.Sprintf("repos/%s/%s/roles/remove", orgSlug, repoSlug)
-        res, err := Execute1("POST", path, body)
+        res, err := DoRequest("POST", path, body)
         Ensure(err)
         if role != "" {
             fmt.Printf("Removed role %s from %s\n", role, user)
@@ -76,7 +76,7 @@ func AccessUser(orgSlug, repoSlug, action string, args ...string) {
         user := args[0]
         // try listing roles and filter by subject
         path := fmt.Sprintf("repos/%s/%s/roles", orgSlug, repoSlug)
-        resp, err := Execute1("GET", path, nil)
+        resp, err := DoRequest("GET", path, nil)
         Ensure(err)
         if items := extractArrayCandidates(resp, "roles", "items", "data"); len(items) > 0 {
             fmt.Printf("Roles for %s in %s/%s:\n", user, orgSlug, repoSlug)
@@ -122,7 +122,7 @@ func AccessInvite(orgSlug, repoSlug, email string, args ...string) {
         body["role"] = role
     }
 
-    res, err := Execute1("POST", fmt.Sprintf("repos/%s/%s/invitations", orgSlug, repoSlug), body)
+    res, err := DoRequest("POST", fmt.Sprintf("repos/%s/%s/invitations", orgSlug, repoSlug), body)
     if err == nil {
         fmt.Printf("Invitation sent to %s for %s/%s\n", email, orgSlug, repoSlug)
         res1, _ := ToJson(res)
@@ -132,7 +132,7 @@ func AccessInvite(orgSlug, repoSlug, email string, args ...string) {
         return
     }
 
-    res2, err2 := Execute1("POST", fmt.Sprintf("orgs/%s/invitations", orgSlug), body)
+    res2, err2 := DoRequest("POST", fmt.Sprintf("orgs/%s/invitations", orgSlug), body)
     Ensure(err2)
     fmt.Printf("Invitation sent to %s for org %s\n", email, orgSlug)
     res1, _ := ToJson(res2)
@@ -160,7 +160,7 @@ func AccessRole(orgSlug, repoSlug, subject, role, action string) {
             "roles": []string{role},
         }
         path := fmt.Sprintf("repos/%s/%s/roles", orgSlug, repoSlug)
-        res, err := Execute1("POST", path, body)
+        res, err := DoRequest("POST", path, body)
         Ensure(err)
         fmt.Printf("Assigned role %s to %s\n", role, subject)
         res2, _ := ToJson(res)
@@ -175,7 +175,7 @@ func AccessRole(orgSlug, repoSlug, subject, role, action string) {
             "roles": []string{role},
         }
         path := fmt.Sprintf("repos/%s/%s/roles/remove", orgSlug, repoSlug)
-        res, err := Execute1("POST", path, body)
+        res, err := DoRequest("POST", path, body)
         Ensure(err)
         fmt.Printf("Removed role %s from %s\n", role, subject)
         res2, _ := ToJson(res)

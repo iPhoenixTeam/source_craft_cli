@@ -21,7 +21,7 @@ func CodeSearch(query, orgSlug, repoSlug string, pageSize int, pageToken string)
         if pageToken != "" {
             q["page_token"] = pageToken
         }
-        resp, err = Execute1("GET", p, q)
+        resp, err = DoRequest("GET", p, q)
         if err == nil {
             break
         }

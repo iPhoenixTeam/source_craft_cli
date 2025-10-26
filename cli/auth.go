@@ -21,10 +21,10 @@ func DispatchAuth(command string, args... string) {
 
 	switch command {
 		case "login":
-			requireArgs(args, 1, "")
+			//requireArgs(args, 1, "")
 			AuthLogin(args[0])
 		case "logout":
-			requireArgs(args, 0, "")
+			//requireArgs(args, 0, "")
 			AuthLogout()
 		default:
 			//help

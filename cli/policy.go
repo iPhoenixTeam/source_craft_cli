@@ -1,24 +1,40 @@
 package cli
 
 import (
+	"flag"
 	"fmt"
 	"strings"
 )
 
 func DispatchPolicy(command string, args... string) {
 	switch command {
-		case "list":
-			requireArgs(args, 1, "")
-			ListRepo(args[3])
-		case "create":
-			requireArgs(args, 3, "")
-			CreateRepo(args[3], args[4], args[4], "", RepoPublic, false)
-		case "fork":
-			requireArgs(args, 3, "")
-			ForkRepo(args[3], args[4], args[5], true)
 		case "view":
-			requireArgs(args, 2, "")
-			ViewRepo(args[3], args[4])
+			fs := NewCmd("repo view", "Usage: %s list <org> <repo> [options]\n", flag.ContinueOnError)
+        
+			if err := fs.Parse(args); err == nil {
+				rem := Require(fs, 2, "Usage: %s list <org> <repo>")
+				
+				PolicyView(rem[0], rem[1])
+			}
+		case "update":
+			fs := NewCmd("repo update", "Usage: %s list <org> <repo> [options]\n", flag.ContinueOnError)
+        
+			if err := fs.Parse(args); err == nil {
+				rem := Require(fs, 2, "Usage: %s list <org> <repo>")
+				
+				PolicyView(rem[0], rem[1])
+			}
+			
+		default:
+			//help
+	}
+}
+
+func DispatchReviewRules(command string, args... string) {
+	switch command {
+		case "view":
+			//requireArgs(args, 2, "")
+			PolicyView(args[0], args[1])
 		default:
 			//help
 	}
@@ -26,29 +42,30 @@ func DispatchPolicy(command string, args... string) {
 
 func PolicyView(orgSlug, repoSlug string) {
 	path := fmt.Sprintf("repos/%s/%s/branch_policies", orgSlug, repoSlug)
-	result, err := Execute1("GET", path, nil)
+	result, err := DoRequest("GET", path, nil)
 	Ensure(err)
 	printPolicyList(result)
 }
 
 func PolicyUpdate(orgSlug, repoSlug, branch string, rules map[string]any) {
-	rules["branch"] = branch;
+	if rules["branch"] != "" {rules["branch"] = branch}
+	
 	path := fmt.Sprintf("repos/%s/%s/branch_policies", orgSlug, repoSlug)
-	result, err := Execute1("PUT", path, rules)
+	result, err := DoRequest("PUT", path, rules)
 	Ensure(err)
 	fmt.Println(ToJson(result))
 }
 
 func ReviewRulesView(orgSlug, repoSlug string) {
 	path := fmt.Sprintf("repos/%s/%s/review_rules", orgSlug, repoSlug)
-	result, err := Execute1("GET", path, nil)
+	result, err := DoRequest("GET", path, nil)
 	Ensure(err)
 	printReviewRulesList(result)
 }
 
 func ReviewRulesUpdate(orgSlug, repoSlug, ruleID string, payload map[string]any) {
 	path := fmt.Sprintf("repos/%s/%s/review_rules/%s", orgSlug, repoSlug, ruleID)
-	result, err := Execute1("PATCH", path, payload)
+	result, err := DoRequest("PATCH", path, payload)
 	Ensure(err)
 	fmt.Println(ToJson(result))
 }
@@ -210,28 +227,4 @@ func summarizeRequirements(v any) string {
 		return strings.Join(parts, ", ")
 	}
 	return fmt.Sprint(v)
-}
-
-/* --- reused helpers (assume they already exist elsewhere in package) --- */
-
-func fmtString(vals ...any) string {
-	for _, v := range vals {
-		if v == nil {
-			continue
-		}
-		switch t := v.(type) {
-		case string:
-			if t != "" {
-				return t
-			}
-		case map[string]any:
-			if s, ok := t["slug"].(string); ok && s != "" {
-				return s
-			}
-			if s, ok := t["name"].(string); ok && s != "" {
-				return s
-			}
-		}
-	}
-	return ""
 }

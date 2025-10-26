@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"flag"
 	"fmt"
 	"io"
 	"net/http"
@@ -14,7 +15,7 @@ var (
 	PAT = "pv1_QOt95M5kFS43F0WBLl4f43xHUT9zQ6819332l5x76Z61m76Z9d88J93Bm429UxR0_3059427555"
 )
 
-func Execute1(method, path string, data map[string] any) (map[string] any, error) {
+func DoRequest(method, path string, data map[string] any) (map[string] any, error) {
 
 	if data == nil {
 		data = make(map[string] any)
@@ -93,3 +94,12 @@ func ToJson(m map[string] any) (string, error) {
 }
 
 func HelpIfEmpty() {}
+
+func NewCmd(name, usage string, errorHandling flag.ErrorHandling) *flag.FlagSet {
+	fs := flag.NewFlagSet(name, flag.ContinueOnError)
+	fs.Usage = func() {
+		fmt.Fprintf(fs.Output(), usage, name)
+		fs.PrintDefaults()
+	}
+	return fs;
+}
