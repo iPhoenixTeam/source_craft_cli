@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"os"
 	"strings"
-	"time"
 )
 
 type IssueVisibility string
@@ -138,20 +137,20 @@ func ListIssues(orgSlug, repoSlug string, pageSize int64, filter, sortBy, pageTo
 
     fmt.Printf("Issues  %s/%s\n\n", orgSlug, repoSlug)
     for _, it := range items {
-        m, ok := it.(map[string]any)
+        m, ok := it.(JsonObject)
         if !ok {
             continue
         }
-        id := ShortID(fmtString(m["id"], m["slug"]))
-        title := fmtString(m["title"])
-        state := fmtString(m["status"], m["state"], m["status_slug"])
+
+        title := ToString(m["title"])
+        state := ToString(m["status_slug"])
         assignee := ""
-        if a, ok := m["assignee"].(map[string]any); ok {
-            assignee = fmtString(a["slug"], a["id"])
+        if a, ok := m["assignee"].(JsonObject); ok {
+            assignee = ToString(a["slug"]) + "/" + ToString(a["id"])
         }
         labels := joinLabels(m["labels"])
-        due := prettyTimeShortAny(m["deadline"])
-        updated := prettyTimeShortAny(m["updated_at"])
+        due := prettyTime(m["deadline"])
+        updated := prettyTime(m["updated_at"])
         extra := []string{}
         if assignee != "" {
             extra = append(extra, "assignee:"+assignee)
@@ -166,7 +165,7 @@ func ListIssues(orgSlug, repoSlug string, pageSize int64, filter, sortBy, pageTo
         if len(extra) > 0 {
             extraStr = " — " + strings.Join(extra, ", ")
         }
-        fmt.Printf("%s %s  %-60s  %s%s\n", id, stateSymbol(state), TruncateString(title, 60), updated, extraStr)
+        fmt.Printf("%s  %-60s  %s%s\n", TruncateString(title, 60), stateSymbol(state), updated, extraStr)
     }
 }
 
@@ -179,24 +178,22 @@ func CreateIssue(orgSlug, repoSlug, issueTitle string, visibility IssueVisibilit
     result, err := DoRequest("POST", fmt.Sprintf("repos/%s/%s/issues", orgSlug, repoSlug), body)
     Ensure(err)
 
-    id := ShortID(fmtString4(result["id"])) + "/" + result["slug"]
-    title := fmtString(result["title"])
-    description := fmtString(result["description"])
-    status := fmtString(result["status"], result["state"])
+    title := ToString(result["title"])
+    description := ToString(result["description"])
+    status := ToString(result["status_slug"])
     author := ""
-    if a, ok := result["author"].(map[string]any); ok {
-        author = fmtString(a["slug"], a["id"], a["name"])
+    if a, ok := result["author"].(JsonObject); ok {
+        author = ToString(a["slug"]) + "/" + ToString(a["id"])
     }
     assignee := ""
-    if a, ok := result["assignee"].(map[string]any); ok {
-        assignee = fmtString(a["slug"], a["id"], a["name"])
+    if a, ok := result["assignee"].(JsonObject); ok {
+        assignee = ToString(a["slug"]) + "/" + ToString(a["id"])
     }
     labels := joinLabels(result["labels"])
-    created := prettyTimeShortAny(result["created_at"])
-    url := fmtString(result["html_url"], result["url"], result["web_url"])
+    created := prettyTime(result["created_at"])
 
     fmt.Println()
-    fmt.Printf("Issue created: %s\n", id)
+    fmt.Printf("Issue created: %s\n", title)
     fmt.Printf("  Title     : %s\n", title)
     if description != "" {
         desc := description
@@ -205,9 +202,7 @@ func CreateIssue(orgSlug, repoSlug, issueTitle string, visibility IssueVisibilit
         }
         fmt.Printf("  Description: %s\n", desc)
     }
-    if url != "" {
-        fmt.Printf("  URL       : %s\n", url)
-    }
+
     fmt.Printf("  Repo      : %s/%s\n", orgSlug, repoSlug)
     if author != "" {
         fmt.Printf("  Author    : %s\n", author)
@@ -237,31 +232,29 @@ func ViewIssue(orgSlug, repoSlug, issueSlug string) {
     result, err := DoRequest("GET", path, nil)
     Ensure(err)
 
-    id := fmtString(result["id"], result["slug"])
-    title := fmtString(result["title"])
-    state := fmtString(result["status"], result["state"], result["status_slug"])
+    title := ToString(result["title"])
+    state := ToString(result["status_slug"])
     author := ""
-    if a, ok := result["author"].(map[string]any); ok {
-        author = fmtString(a["slug"], a["id"])
+    if a, ok := result["author"].(JsonObject); ok {
+        author = ToString(a["slug"]) + "/" + ToString(a["id"])
     }
     assignee := ""
-    if a, ok := result["assignee"].(map[string]any); ok {
-        assignee = fmtString(a["slug"], a["id"])
+    if a, ok := result["assignee"].(JsonObject); ok {
+        author = ToString(a["slug"]) + "/" + ToString(a["id"])
     }
     labels := joinLabels(result["labels"])
-    created := prettyTimeShortAny(result["created_at"])
-    updated := prettyTimeShortAny(result["updated_at"])
-    priority := fmtString(result["priority"])
+    created := prettyTime(result["created_at"])
+    updated := prettyTime(result["updated_at"])
+    priority := ToString(result["priority"])
     milestone := ""
-    if m, ok := result["milestone"].(map[string]any); ok {
-        milestone = fmtString(m["slug"], m["id"])
+    if m, ok := result["milestone"].(JsonObject); ok {
+        milestone = ToString(m["slug"]) + "/" + ToString(m["id"])
     }
-    deadline := prettyTimeShortAny(result["deadline"])
-    description := fmtString(result["description"], result["body"])
+    deadline := prettyTime(result["deadline"])
+    description := ToString(result["description"])
 
     stateTag := strings.ToUpper(state)
-    fmt.Printf("%s\n", title)
-    fmt.Printf("issue %s  %s\n\n", id, stateTag)
+    fmt.Printf("issue %s  %s\n\n", title, stateTag)
 
     meta := []string{}
     if author != "" {
@@ -309,7 +302,7 @@ func ViewIssue(orgSlug, repoSlug, issueSlug string) {
 
 func UpdateIssue(orgSlug, repoSlug, issueSlug string, fields map[string] any) {
     if fields == nil {
-        fields = make(map[string]any)
+        fields = make(JsonObject)
     }
     path := fmt.Sprintf("repos/%s/%s/issues/%s", orgSlug, repoSlug, issueSlug)
     result, err := DoRequest("PATCH", path, fields)
@@ -318,7 +311,7 @@ func UpdateIssue(orgSlug, repoSlug, issueSlug string, fields map[string] any) {
 }
 
 func CloseIssue(orgSlug, repoSlug, issueSlug string) {
-    body := map[string]any{
+    body := JsonObject{
         "status_slug": "closed",
     }
     path := fmt.Sprintf("repos/%s/%s/issues/%s", orgSlug, repoSlug, issueSlug)
@@ -326,7 +319,6 @@ func CloseIssue(orgSlug, repoSlug, issueSlug string) {
     Ensure(err)
     fmt.Println(ToJson(result))
 }
-
 
 func stateSymbol(state string) string {
     switch strings.ToLower(state) {
@@ -341,19 +333,6 @@ func stateSymbol(state string) string {
     }
 }
 
-func prettyTimeShortAny(v any) string {
-    if v == nil {
-        return ""
-    }
-    if s, ok := v.(string); ok && s != "" {
-        if t, err := time.Parse(time.RFC3339, s); err == nil {
-            return t.Format("2006-01-02")
-        }
-        return s
-    }
-    return ""
-}
-
 func joinLabels(labels any) string {
     if labels == nil {
         return ""
@@ -362,7 +341,7 @@ func joinLabels(labels any) string {
     case []any:
         out := make([]string, 0, len(arr))
         for _, it := range arr {
-            if m, ok := it.(map[string]any); ok {
+            if m, ok := it.(JsonObject); ok {
                 if n, ok2 := m["name"].(string); ok2 && n != "" {
                     out = append(out, n)
                     continue

@@ -1,10 +1,11 @@
 package cli
 
 import (
-    "encoding/json"
-    "fmt"
-    "os"
-    "path/filepath"
+	"encoding/json"
+	"flag"
+	"fmt"
+	"os"
+	"path/filepath"
 )
 
 const (
@@ -13,22 +14,82 @@ const (
 )
 
 type CLIConfig struct {
-    AuthToken string            
-    Settings  map[string]string
+    AuthToken string            `json:"auth_token"`
+    Settings  map[string]string `json:"settings"`
 }
 
-func DispatchAuth(command string, args... string) {
+func DispatchAuth(command string, args []string) {
+    switch command {
+    case "login":
+        fs := NewCmd("auth login", "Usage: %s auth login <token>\n", flag.ContinueOnError)
+        if err := fs.Parse(args); err == nil {
+            rem := Require(fs, 1, "Usage: auth login <token>")
+            if rem == nil {
+                return
+            }
+            AuthLogin(rem[0])
+            return
+        } else {
+            return
+        }
+    case "logout":
+        fs := NewCmd("auth logout", "Usage: %s auth logout\n", flag.ContinueOnError)
+        if err := fs.Parse(args); err == nil {
+            AuthLogout()
+            return
+        } else {
+            return
+        }
+    case "--help", "-h", "help", "":
+        fmt.Fprintln(os.Stderr, `auth commands:
+  auth login <token>
+  auth logout`)
+        return
+    default:
+        fmt.Fprintln(os.Stderr, "unknown auth command:", command)
+        return
+    }
+}
 
-	switch command {
-		case "login":
-			//requireArgs(args, 1, "")
-			AuthLogin(args[0])
-		case "logout":
-			//requireArgs(args, 0, "")
-			AuthLogout()
-		default:
-			//help
-	}
+func DispatchConfig(command string, args []string) {
+    switch command {
+    case "set":
+        fs := NewCmd("config set", "Usage: %s config set <key> <value>\n", flag.ContinueOnError)
+        if err := fs.Parse(args); err == nil {
+            rem := Require(fs, 2, "Usage: config set <key> <value>")
+            if rem == nil {
+                return
+            }
+            ConfigSet(rem[0], rem[1])
+            return
+        } else {
+            return
+        }
+    case "get":
+        fs := NewCmd("config get", "Usage: %s config get [<key>]\n", flag.ContinueOnError)
+        if err := fs.Parse(args); err == nil {
+            rem := Require(fs, 0, "")
+            if rem == nil {
+                return
+            }
+            key := ""
+            if len(rem) > 0 {
+                key = rem[0]
+            }
+            ConfigGet(key)
+            return
+        } else {
+            return
+        }
+    case "--help", "-h", "help", "":
+        fmt.Fprintln(os.Stderr, `config commands:
+  config set <key> <value>
+  config get [<key>]`)
+        return
+    default:
+        fmt.Fprintln(os.Stderr, "unknown config command:", command)
+        return
+    }
 }
 
 func AuthLogin(token string) {
@@ -51,7 +112,6 @@ func AuthLogin(token string) {
 func AuthLogout() {
     cfg, err := loadConfig()
     if err != nil {
-        // if config not found treat as already logged out
         if os.IsNotExist(err) {
             fmt.Println("Already logged out")
             return

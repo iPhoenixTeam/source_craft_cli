@@ -85,8 +85,8 @@ func AccessUser(orgSlug, repoSlug, action string, args ...string) {
                     if subs, ok := mm["subjects"].([]any); ok {
                         for _, s := range subs {
                             if sm, ok := s.(map[string]any); ok {
-                                if fmtString(sm["slug"], sm["id"]) == user {
-                                    fmt.Printf("  - %s\n", fmtString(mm["role"], mm["name"], mm["slug"]))
+                                if ToString(sm["slug"]) == user {
+                                    fmt.Printf("  - %s\n", ToString(mm["role"]) + ToString(mm["name"]) + ToString(mm["slug"]))
                                 }
                             }
                         }
@@ -101,8 +101,6 @@ func AccessUser(orgSlug, repoSlug, action string, args ...string) {
     }
 }
 
-// AccessInvite sends an invitation to an email to join the organization or repository.
-// optional role can be provided in args[0]
 func AccessInvite(orgSlug, repoSlug, email string, args ...string) {
     if orgSlug == "" || repoSlug == "" {
         Ensure(fmt.Errorf("repository not specified"))
@@ -141,8 +139,6 @@ func AccessInvite(orgSlug, repoSlug, email string, args ...string) {
     }
 }
 
-// AccessRole assigns or updates roles for a subject (user/team/bot).
-// usage: AccessRole(org, repo, subject, role, action) where action is "add" or "remove"
 func AccessRole(orgSlug, repoSlug, subject, role, action string) {
     if orgSlug == "" || repoSlug == "" {
         Ensure(fmt.Errorf("repository not specified"))
@@ -195,14 +191,14 @@ func printRolesList(resp map[string]any) {
     }
     for _, it := range items {
         if m, ok := it.(map[string]any); ok {
-            roleName := fmtString(m["role"], m["name"], m["slug"])
+            roleName := ToString(m["slug"])
             fmt.Printf("Role: %s\n", roleName)
             if subs, ok := m["subjects"].([]any); ok && len(subs) > 0 {
                 fmt.Println("  Subjects:")
                 for _, s := range subs {
                     switch sm := s.(type) {
                     case map[string]any:
-                        fmt.Printf("    - %s (%s)\n", fmtString(sm["slug"], sm["id"]), fmtString(sm["type"]))
+                        fmt.Printf("    - %s (%s)\n", ToString(sm["slug"]) + ToString(sm["id"]), ToString(sm["type"]))
                     default:
                         fmt.Printf("    - %v\n", s)
                     }

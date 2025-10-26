@@ -163,7 +163,7 @@ func printCodeHit(h codeHit, query string) {
         fmt.Printf("  commit: %s", ShortID(h.CommitID))
     }
     if h.UpdatedAt != "" {
-        fmt.Printf("  updated: %s", prettyTimeShortAny(h.UpdatedAt))
+        fmt.Printf("  updated: %s", prettyTime(h.UpdatedAt))
     }
     if scoreStr != "" {
         fmt.Printf(" %s", scoreStr)

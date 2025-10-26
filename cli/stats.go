@@ -1,10 +1,77 @@
 package cli
 
 import (
+	"flag"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 )
+
+func printStatsHelp() {
+	fmt.Fprintln(os.Stderr, `stats commands:
+  stats repo <org> <repo>
+  stats user <user>
+  stats security <org> <repo>`)
+}
+
+func printReportHelp() {
+	fmt.Fprintln(os.Stderr, `report commands:
+  report security <org> <repo> [--top N]`)
+}
+
+func DispatchStats(command string, args []string) {
+    switch command {
+    case "repo":
+        fs := NewCmd("stats repo", "Usage: %s stats repo <org> <repo>\n", flag.ContinueOnError)
+        if err := fs.Parse(args); err == nil {
+            rem := Require(fs, 2, "Usage: stats repo <org> <repo>")
+
+            StatsRepo(rem[0], rem[1])
+            return
+        }
+    case "user":
+        fs := NewCmd("stats user", "Usage: %s stats user <user>\n", flag.ContinueOnError)
+        if err := fs.Parse(args); err == nil {
+            rem := Require(fs, 1, "Usage: stats user <user>")
+
+            StatsUser(rem[0])
+            return
+        } 
+    case "security":
+        fs := NewCmd("stats security", "Usage: %s stats security <org> <repo>\n", flag.ContinueOnError)
+        if err := fs.Parse(args); err == nil {
+            rem := Require(fs, 2, "Usage: stats security <org> <repo>")
+
+            StatsSecurity(rem[0], rem[1])
+            return
+        }
+    case "--help", "-h", "help", "":
+        printStatsHelp()
+    default:
+        printStatsHelp()
+    }
+}
+
+func DispatchReport(command string, args []string) {
+    switch command {
+    case "security":
+        fs := NewCmd("report security", "Usage: %s report security <org> <repo> [--top N]\n", flag.ContinueOnError)
+        top := fs.Int("top", 10, "top N items")
+        if err := fs.Parse(args); err == nil {
+            rem := Require(fs, 2, "Usage: report security <org> <repo> [--top N]")
+
+            ReportSecurity(rem[0], rem[1], *top)
+            return
+        } else {
+            return
+        }
+    case "--help", "-h", "help", "":
+        printReportHelp()
+    default:
+        printReportHelp()
+    }
+}
 
 func StatsRepo(orgSlug, repoSlug string) {
 	path := fmt.Sprintf("repos/%s/%s/stats", orgSlug, repoSlug)
@@ -43,8 +110,8 @@ func ReportSecurity(orgSlug, repoSlug string, topN int) {
 func printRepoStats(m map[string]any) {
 	name := fmtString6(m["name"], m["slug"])
 	lang := fmtString6(m["language"])
-	created := prettyTimeShortAny(m["created_at"])
-	updated := prettyTimeShortAny(m["last_updated"])
+	created := prettyTime(m["created_at"])
+	updated := prettyTime(m["last_updated"])
 
 	fmt.Printf("%s\n", name)
 	fmt.Printf("repo %s\n\n", fmtString6(m["id"], m["slug"]))
@@ -123,7 +190,7 @@ func printSecurityStats(m map[string]any) {
 		for _, it := range scanners {
 			if mm, ok := it.(map[string]any); ok {
 				fmt.Printf("  %-20s  last_scan: %s  issues: %s\n",
-					fmtString6(mm["name"]), prettyTimeShortAny(mm["last_scan"]), fmtString6(mm["issues_count"]))
+					fmtString6(mm["name"]), prettyTime(mm["last_scan"]), fmtString6(mm["issues_count"]))
 			}
 		}
 	}

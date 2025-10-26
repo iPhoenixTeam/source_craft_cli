@@ -71,7 +71,7 @@ func ReviewRulesUpdate(orgSlug, repoSlug, ruleID string, payload map[string]any)
 }
 
 func printPolicyList(m map[string]any) {
-	repo := fmtString(m["repo"], m["slug"], m["id"])
+	repo := ToString(m["slug"])
 	fmt.Printf("Branch policies for %s\n\n", repo)
 
 	items := extractArrayCandidates(m, "policies", "items", "data", "branch_policies")
@@ -85,11 +85,11 @@ func printPolicyList(m map[string]any) {
 		if !ok {
 			continue
 		}
-		branch := fmtString(p["branch"], p["branch_name"], p["pattern"])
-		enforced := fmtString(p["enforced"], p["enabled"])
+		branch := ToString(p["branch"])
+		enforced := ToString(p["enforced"])
 		providers := joinStringsFrom(p["providers"])
 		protectors := joinStringsFrom(p["protectors"])
-		updated := prettyTimeShortAny(p["last_updated"])
+		updated := prettyTime(p["last_updated"])
 
 		fmt.Printf("branch: %s\n", branch)
 		fmt.Printf("  enforced: %s  updated: %s\n", enforced, updated)
@@ -109,7 +109,7 @@ func printPolicyList(m map[string]any) {
 }
 
 func printReviewRulesList(m map[string]any) {
-	repo := fmtString(m["repo"], m["slug"], m["id"])
+	repo := ToString(m["id"])
 	fmt.Printf("Review rules for %s\n\n", repo)
 
 	items := extractArrayCandidates(m, "rules", "review_rules", "items", "data")
@@ -123,12 +123,12 @@ func printReviewRulesList(m map[string]any) {
 		if !ok {
 			continue
 		}
-		id := fmtString(r["id"], r["slug"])
-		name := fmtString(r["name"], r["title"])
-		enabled := fmtString(r["enabled"], r["active"])
+		id := ToString(r["id"])
+		name := ToString(r["name"])
+		enabled := ToString(r["enabled"])
 		conditions := summarizeConditions(r["conditions"])
 		requirements := summarizeRequirements(r["requirements"])
-		updated := prettyTimeShortAny(r["last_updated"])
+		updated := prettyTime(r["last_updated"])
 
 		fmt.Printf("%s  %s\n", id, name)
 		fmt.Printf("  enabled: %s  updated: %s\n", enabled, updated)
@@ -149,7 +149,7 @@ func printReviewRulesList(m map[string]any) {
 
 /* --- small utilities --- */
 
-func extractArrayCandidates(m map[string]any, keys ...string) []any {
+func extractArrayCandidates(m JsonObject, keys ...string) []any {
 	for _, k := range keys {
 		if v, ok := m[k]; ok && v != nil {
 			if arr, ok := v.([]any); ok {
@@ -175,7 +175,7 @@ func joinStringsFrom(v any) string {
 				continue
 			}
 			if mm, ok := it.(map[string]any); ok {
-				if name := fmtString(mm["name"], mm["slug"], mm["id"]); name != "" {
+				if name := ToString(mm["id"]); name != "" {
 					out = append(out, name)
 				}
 			}
@@ -197,7 +197,7 @@ func summarizeConditions(v any) string {
 		parts := []string{}
 		for _, it := range t {
 			if mm, ok := it.(map[string]any); ok {
-				parts = append(parts, fmtString(mm["type"], mm["field"], mm["pattern"]))
+				parts = append(parts, ToString(mm["type"]), ToString(mm["field"]), ToString(mm["pattern"]))
 			} else {
 				parts = append(parts, fmt.Sprint(it))
 			}
@@ -219,7 +219,7 @@ func summarizeRequirements(v any) string {
 		parts := []string{}
 		for _, it := range arr {
 			if mm, ok := it.(map[string]any); ok {
-				parts = append(parts, fmtString(mm["type"], mm["requirement"], mm["name"]))
+				parts = append(parts, ToString(mm["type"]), ToString(mm["requirement"]), ToString(mm["name"]))
 			} else {
 				parts = append(parts, fmt.Sprint(it))
 			}

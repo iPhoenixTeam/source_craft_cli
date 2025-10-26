@@ -5,7 +5,10 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"time"
 )
+
+type JsonObject = map[string] any
 
 func TruncateString(s string, n int) string {
 	if len(s) <= n {
@@ -95,4 +98,41 @@ func NumberFrom(v any) (int, bool) {
     default:
         return 0, false
     }
+}
+
+func ParseDateFromMap(m map[string]any, keys ...string) string {
+    for _, k := range keys {
+        if v, ok := m[k]; ok && v != nil {
+            if s, ok := v.(string); ok && s != "" {
+                if t, err := time.Parse(time.RFC3339, s); err == nil {
+                    return t.Format("2006-01-02")
+                }
+                return s
+            }
+        }
+    }
+    return ""
+}
+
+func ToString(s any) string {
+	if s == nil {
+        return ""
+    }
+    if v, ok := s.(string); ok && s != "" {
+        return v
+    }
+    return ""
+}
+
+func prettyTime(v any) string {
+    if v == nil {
+        return ""
+    }
+    if s, ok := v.(string); ok && s != "" {
+        if t, err := time.Parse(time.RFC3339, s); err == nil {
+            return t.Format("2006-01-02")
+        }
+        return s
+    }
+    return ""
 }

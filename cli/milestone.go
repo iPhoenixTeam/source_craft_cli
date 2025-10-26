@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"time"
 )
 
 type MilestoneStatus string
@@ -86,10 +85,10 @@ func ListMilestone(orgSlug, repoSlug string) {
         if !ok {
             continue
         }
-        id := fmtString4(m["id"])
-        title := fmtString4(m["title"])
-        state := fmtString4(m["status"], m["state"], m["status_slug"])
-        due := parseDateFromMap(m, "deadline", "due_date", "due")
+        id := ToString(m["id"])
+        title := ToString(m["title"])
+        state := ToString(m["status"])
+        due := ParseDateFromMap(m, "deadline", "due_date", "due")
         printMilestoneLine(id, title, state, due)
     }
 }
@@ -109,13 +108,13 @@ func ViewMilestone(orgSlug, repoSlug, milestoneSlug string) {
     result, err := DoRequest("GET", fmt.Sprintf("/repos/%s/%s/milestones/%s", orgSlug, repoSlug, milestoneSlug), nil)
     Ensure(err)
 
-    id := fmtString4(result["id"])
-    title := fmtString4(result["title"])
-    description := fmtString4(result["description"], result["body"])
-    state := fmtString4(result["status"], result["state"], result["status_slug"])
-    created := fmtString4(result["created_at"], result["created"])
-    updated := fmtString4(result["updated_at"], result["updated"])
-    due := parseDateFromMap(result, "deadline", "due_date", "due")
+    id := ToString(result["id"])
+    title := ToString(result["title"])
+    description := ToString(result["description"])
+    state := ToString(result["status"])
+    created := ToString(result["created_at"])
+    updated := ToString(result["updated_at"])
+    due := ParseDateFromMap(result, "deadline", "due_date", "due")
 
     stateTag := strings.ToUpper(state)
     fmt.Printf("%s (%s)\n", title, stateTag)
@@ -134,8 +133,8 @@ func ViewMilestone(orgSlug, repoSlug, milestoneSlug string) {
         fmt.Printf("Due: %s\n", due)
     }
 
-    if openCount, ok := numberFrom(result["open_issues_count"]); ok {
-        if closedCount, ok2 := numberFrom(result["closed_issues_count"]); ok2 {
+    if openCount, ok := NumberFrom(result["open_issues_count"]); ok {
+        if closedCount, ok2 := NumberFrom(result["closed_issues_count"]); ok2 {
             fmt.Printf("Issues: %d open, %d closed\n", openCount, closedCount)
         } else {
             fmt.Printf("Issues open: %d\n", openCount)
@@ -162,18 +161,4 @@ func stateSymbol1(state string) string {
     default:
         return "·"
     }
-}
-
-func parseDateFromMap(m map[string]any, keys ...string) string {
-    for _, k := range keys {
-        if v, ok := m[k]; ok && v != nil {
-            if s, ok := v.(string); ok && s != "" {
-                if t, err := time.Parse(time.RFC3339, s); err == nil {
-                    return t.Format("2006-01-02")
-                }
-                return s
-            }
-        }
-    }
-    return ""
 }

@@ -3,11 +3,11 @@ package cli
 import (
 	"flag"
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"time"
 )
 
 type RepoVisibility string
@@ -21,9 +21,9 @@ const (
 func printRepoHelp() {
     fmt.Fprintln(os.Stderr, `repo commands:
   repo list [org]
-  repo create <org> <name> [--desc DESC] [--visibility public|private|internal]
-  repo fork <srcOrg> <srcRepo> <newSlug> [--default-branch-only]
-  repo view <org> <repo> [--json] [--v]
+  repo create <org> <name> [options]
+  repo fork <srcOrg> <srcRepo> <newSlug> [options]
+  repo view <org> <repo>
 Use "repo <command> --help" for command-specific flags.`)
 }
 
@@ -32,8 +32,11 @@ func DispatchRepo(command string, args []string) {
 	case "list":
         fs := NewCmd("repo list", "Usage: %s list [org]\n", flag.ContinueOnError)
         
+		pageSize := fs.Int("pageSize", 30, "pagesize")
+		pageToken := fs.String("pageToken", "", "page token")
+
         if err := fs.Parse(args); err == nil {
-			ListRepo(fs.Arg(0))
+			ListRepo(fs.Arg(0), int64(*pageSize), *pageToken)
         }
 
     case "create":
@@ -42,6 +45,7 @@ func DispatchRepo(command string, args []string) {
         desc := fs.String("desc", "", "repository description")
 		createReadme := fs.Bool("create-readme", false, "create readme file")
         visibility := fs.String("visibility", string(RepoPublic), "visibility: public|private|internal")
+		defaultBranch := fs.String("defaultBranch", "", "default branch name")
         
 		if err := fs.Parse(args); err == nil {
 			rem := Require(fs, 2, "Usage: %s create <org> <name> [options]")
@@ -56,7 +60,7 @@ func DispatchRepo(command string, args []string) {
 					vis = RepoPublic
 			}
 
-			CreateRepo(rem[0], rem[1], *desc, vis, *createReadme)
+			CreateRepo(rem[0], rem[1], *desc, vis, *defaultBranch, *createReadme)
 		}
 
     case "fork":
@@ -71,7 +75,7 @@ func DispatchRepo(command string, args []string) {
         }
         
     case "view":
-        fs := NewCmd("repo view", "Usage: %s view <org> <repo> [options]\n", flag.ContinueOnError)
+        fs := NewCmd("repo view", "Usage: %s view <org> <repo>\n", flag.ContinueOnError)
         
 		if err := fs.Parse(args); err == nil {
             rem := Require(fs, 2, "usage: view requires <org> <repo>")
@@ -87,23 +91,26 @@ func DispatchRepo(command string, args []string) {
 	}
 }
 
-
-func ListRepo(orgSlug string) {
+func ListRepo(orgSlug string, pageSize int64, pageToken string) {
     path := fmt.Sprintf("/orgs/%s/repos", orgSlug)
+	
+	q := make([]string, 0, 2)
+    if pageSize > 0 {
+        q = append(q, fmt.Sprintf("page_size=%d", pageSize))
+    }
+    if pageToken != "" {
+        q = append(q, "page_token="+url.QueryEscape(pageToken))
+    }
+    if len(q) > 0 {
+        path = path + "?" + strings.Join(q, "&")
+    }
+
     resp, err := DoRequest("GET", path, nil)
     Ensure(err)
 
     var items []any
-    if arr, ok := resp["repos"].([]any); ok {
+    if arr, ok := resp["items"].([]any); ok {
         items = arr
-    } else if arr, ok := resp["items"].([]any); ok {
-        items = arr
-    } else if arr, ok := resp["data"].([]any); ok {
-        items = arr
-    } else {
-        // fallback: print raw
-        fmt.Println(ToJson(resp))
-        return
     }
 
     fmt.Printf("Repositories for %s\n\n", orgSlug)
@@ -112,11 +119,11 @@ func ListRepo(orgSlug string) {
         if !ok {
             continue
         }
-        id := ShortID(fmtString1(m["id"], m["slug"]))
-        name := fmtString1(m["name"], m["slug"])
-        vis := fmtString1(m["visibility"])
-        lang := fmtString1(m["language"])
-        updated := prettyTimeShort(m["last_updated"])
+        id := ToString(resp["id"]) + "/" + ToString(resp["slug"])
+        name := ToString(m["name"])
+        vis := ToString(m["visibility"])
+        lang := ToString(m["language"])
+        updated := prettyTime(m["last_updated"])
         counters := m["counters"]
         forks, prs, issues := "0", "0", "0"
         if c, ok := counters.(map[string]any); ok {
@@ -124,7 +131,7 @@ func ListRepo(orgSlug string) {
             if v, ok := c["pull_requests"].(string); ok { prs = v }
             if v, ok := c["issues"].(string); ok { issues = v }
         }
-        desc := fmtString1(m["description"])
+        desc := ToString(m["description"])
         fmt.Printf("%s %s  %-20s  %s  %s\n", id, visSymbol(vis), name, lang, updated)
         fmt.Printf("    ↳ forks:%s  prs:%s  issues:%s\n", forks, prs, issues)
         if desc != "" {
@@ -134,20 +141,52 @@ func ListRepo(orgSlug string) {
     }
 }
 
-func CreateRepo(orgSlug, repoSlug, description string, visibility RepoVisibility, createReadme bool) {
+func CreateRepo(orgSlug, repoSlug, description string, visibility RepoVisibility, defaultBranch string, createReadme bool) {
 	body := map[string] any {
 		"name":        repoSlug,
 		"slug":        repoSlug,
 		"description": description,
 		"visibility":  visibility,
 		"init_settings": map[string]any{
-			"default_branch": "",
+			"default_branch": defaultBranch,
 			"create_readme":  createReadme,
 		},
 	}
-	result, err := DoRequest("POST", fmt.Sprintf("/orgs/%s/repos", orgSlug), body)
+	resp, err := DoRequest("POST", fmt.Sprintf("/orgs/%s/repos", orgSlug), body)
 	Ensure(err)
-	fmt.Println(ToJson(result))
+
+	id := ToString(resp["id"]) + "/" + ToString(resp["slug"])
+    name := ToString(resp["name"])
+    desc := ToString(resp["description"])
+    vis := ToString(resp["visibility"])
+
+	created := prettyTime(resp["created_at"])
+    updated := prettyTime(resp["updated_at"])
+    cloneURL := ""
+	if v, ok := resp["clone_url"].(map[string]any); ok {
+		cloneURL = "https: " + ToString(v["https"]) + ", ssh: " + ToString(v["ssh"])
+	}
+    fmt.Println()
+    fmt.Printf("Repository created: %s\n", id)
+	fmt.Printf("  Name        : %s\n", TruncateString(name, 60))
+
+    if desc != "" {
+        fmt.Printf("  Description : %s\n", TruncateString(desc, 200))
+    }
+    if cloneURL != "" {
+        fmt.Printf("  URL         : %s\n", cloneURL)
+    }
+    fmt.Printf("  Visibility : %s\n", vis)
+    if defaultBranch != "" {
+        fmt.Printf("  Default     : %s\n", defaultBranch)
+    }
+    if created != "" {
+        fmt.Printf("  Created     : %s\n", created)
+    }
+    if updated != "" {
+        fmt.Printf("  Updated     : %s\n", updated)
+    }
+    fmt.Println()
 }
 
 func ForkRepo(orgSlug, oldRepoSlug, forkRepoSlug string, defaultBranchOnly bool) {
@@ -156,31 +195,21 @@ func ForkRepo(orgSlug, oldRepoSlug, forkRepoSlug string, defaultBranchOnly bool)
 		"slug":                forkRepoSlug,
 		"default_branch_only": defaultBranchOnly,
 	}
-	result, err := DoRequest("POST", fmt.Sprintf("/repos/%s/%s/fork", orgSlug, oldRepoSlug), body)
+	resp, err := DoRequest("POST", fmt.Sprintf("/repos/%s/%s/fork", orgSlug, oldRepoSlug), body)
 	Ensure(err)
-	fmt.Println(ToJson(result))
+	fmt.Println(ToJson(resp))
 }
 
 func CloneRepo(orgSlug, repoSlug, destDir string) {
 	if destDir == "" {
 		destDir = repoSlug
 	}
-	repoResp, err := DoRequest("GET", fmt.Sprintf("/repos/%s/%s", orgSlug, repoSlug), nil)
+	resp, err := DoRequest("GET", fmt.Sprintf("/repos/%s/%s", orgSlug, repoSlug), nil)
 	Ensure(err)
 
 	cloneURL := ""
-	if v, ok := repoResp["clone_url"].(map[string]any); ok {
-		if https, ok := v["https"].(string); ok && https != "" {
-			cloneURL = https
-		}
-		if cloneURL == "" {
-			if ssh, ok := v["ssh"].(string); ok {
-				cloneURL = ssh
-			}
-		}
-	}
-	if cloneURL == "" {
-		Ensure(fmt.Errorf("clone_url not found in repo response"))
+	if v, ok := resp["clone_url"].(map[string]any); ok {
+		cloneURL = "https: " + ToString(v["https"]) + ", ssh: " + ToString(v["ssh"])
 	}
 
 	if err := os.MkdirAll(destDir, 0o755); err != nil {
@@ -200,12 +229,12 @@ func CloneRepo(orgSlug, repoSlug, destDir string) {
 }
 
 func SyncRepo(orgSlug, repoSlug string) {
-	repoResp, err := DoRequest("GET", "/repos/"+orgSlug+"/"+repoSlug, nil)
+	resp, err := DoRequest("GET", "/repos/"+orgSlug+"/"+repoSlug, nil)
 	Ensure(err)
 
-	parentObj, hasParent := repoResp["parent"].(map[string]any)
+	parentObj, hasParent := resp["parent"].(map[string]any)
 	defaultBranch := ""
-	if db, ok := repoResp["default_branch"].(string); ok {
+	if db, ok := resp["default_branch"].(string); ok {
 		defaultBranch = db
 	}
 	if defaultBranch == "" {
@@ -278,8 +307,8 @@ func SyncRepo(orgSlug, repoSlug string) {
 }
 
 func containsRemote(list string, name string) bool {
-	result, _ := filepath.Match("*"+name+"*", list)
-	return result && (len(list) > 0 && (StringContains(list, name)))
+	resp, _ := filepath.Match("*"+name+"*", list)
+	return resp && (len(list) > 0 && (StringContains(list, name)))
 }
 
 func visSymbol(vis string) string {
@@ -295,24 +324,24 @@ func visSymbol(vis string) string {
 
 func ViewRepo(orgSlug, repoSlug string) {
     path := fmt.Sprintf("/repos/%s/%s", orgSlug, repoSlug)
-    result, err := DoRequest("GET", path, nil)
+    resp, err := DoRequest("GET", path, nil)
     Ensure(err)
 
-    id := fmtString1(result["id"])
-    name := fmtString1(result["name"], result["slug"])
-    desc := fmtString1(result["description"])
-    visibility := fmtString1(result["visibility"])
-    defaultBranch := fmtString1(result["default_branch"])
-    lang := fmtString1(result["language"], mapStringField(result, "language", "name"))
-    lastUpdated := prettyTimeShort(result["last_updated"])
-    isEmpty := fmtString1(result["is_empty"])
+    id := ToString(resp["id"])
+    name := ToString(resp["name"])
+    desc := ToString(resp["description"])
+    visibility := ToString(resp["visibility"])
+    defaultBranch := ToString(resp["default_branch"])
+    lang := MapStringField(resp, "language", "name")
+    lastUpdated := prettyTime(resp["last_updated"])
+    isEmpty := resp["is_empty"]
     cloneURL := ""
-    if cu, ok := result["clone_url"].(map[string]any); ok {
-        cloneURL = fmtString1(cu["https"], cu["ssh"])
+    if cu, ok := resp["clone_url"].(JsonObject); ok {
+        cloneURL =" http: " + ToString(cu["https"]) + ", ssh: " + ToString(cu["ssh"])
     }
     parent := ""
-    if p, ok := result["parent"].(map[string]any); ok {
-        parent = fmtString1(p["organization"], p["slug"], p["id"])
+    if p, ok := resp["organization"].(map[string]any); ok {
+        parent = ToString(p["slug"]) + "/" + ToString(p["id"])
     }
 
     fmt.Printf("%s\n", name)

@@ -3,6 +3,7 @@ package cli
 import (
 	"flag"
 	"fmt"
+	"net/url"
 	"os"
 	"strings"
 )
@@ -12,7 +13,7 @@ func printPrHelp() {
   pr list <org> <repo> [--pageSize N] [--filter filter] [--pageToken QUERY]
   pr create <org> <repo> <title> <body> <branch>
   pr view <org> <repo> <id>
-  pr merge <org> <repo> <id> <method> <squash> <deleteBranch>
+  pr merge <org> <repo> <id> <method> <squash> <deleteBranch> НЕ РЕАЛИЗОВАНО
 Use "pr <command> --help" for command-specific flags.`)
 }
 
@@ -52,6 +53,8 @@ func DispatchPr(command string, args []string) {
 			}
 
 		case "merge":
+			os.Exit(1)
+			
 			fs := NewCmd("pr merge", "Usage: %s merge <org> <repo> <id> <method> <squash> <deleteBranch>\n", flag.ContinueOnError)
 			
 			squash := fs.Bool("squash", false, "use squash merge")
@@ -72,22 +75,30 @@ func DispatchPr(command string, args []string) {
 }
 
 func ListPr(orgSlug, repoSlug, filter string, pageSize int64, pageToken string) {
-	path := candidatePrListPath(orgSlug, repoSlug)
-	q := map[string]any{}
-	if filter != "" {
-		q["filter"] = filter
-	}
-	if pageSize > 0 {
-		q["page_size"] = pageSize
-	}
-	if pageToken != "" {
-		q["page_token"] = pageToken
-	}
+	path := fmt.Sprintf("/repos/%s/%s/pulls", orgSlug, repoSlug)
+	
+	q := make([]string, 0, 3)
+    if pageSize > 0 {
+        q = append(q, fmt.Sprintf("page_size=%d", pageSize))
+    }
+    if pageToken != "" {
+        q = append(q, "page_token="+url.QueryEscape(pageToken))
+    }
+    if filter != "" {
+        q = append(q, "filter="+url.QueryEscape(filter))
+    }
+    if len(q) > 0 {
+        path = path + "?" + strings.Join(q, "&")
+    }
 
-	resp, err := DoRequest("GET", path, q)
+	resp, err := DoRequest("GET", path, nil)
 	Ensure(err)
 
-	items := extractArrayCandidates(resp, "pull_requests", "pulls", "items", "data", "results")
+	items := JsonObject{}
+	if result, ok := resp["pull_requests"].(JsonObject); ok {
+		items = result
+	}
+
 	if len(items) == 0 {
 		fmt.Printf("Pull requests %s/%s\n\n", orgSlug, repoSlug)
 		fmt.Println("(no pull requests)")
@@ -96,38 +107,42 @@ func ListPr(orgSlug, repoSlug, filter string, pageSize int64, pageToken string) 
 
 	fmt.Printf("Pull requests %s/%s\n\n", orgSlug, repoSlug)
 	for _, it := range items {
-		pr, ok := it.(map[string]any)
-		if !ok {
-			continue
+		if a, ok := it.(JsonObject); ok {
+			PrintSinglePr(a)
 		}
-		id := string(pr["id"]) + "/" + pr["slug"]
-		title := fmtString(pr["title"], pr["name"])
-		author := ""
-		if a, ok := pr["author"].(map[string]any); ok {
-			author = fmtString(a["slug"], a["id"])
-		}
-		state := fmtString(pr["status"], pr["state"], pr["status_slug"])
-		updated := prettyTimeShortAny(pr["updated_at"])
-		source := fmtString(pr["source_branch"], pr["head"])
-		target := fmtString(pr["target_branch"], pr["base"])
-
-		extra := []string{}
-		if source != "" || target != "" {
-			extra = append(extra, fmt.Sprintf("%s→%s", source, target))
-		}
-		if author != "" {
-			extra = append(extra, "by:"+author)
-		}
-		if updated != "" {
-			extra = append(extra, "updated:"+updated)
-		}
-		extraStr := ""
-		if len(extra) > 0 {
-			extraStr = "  — " + strings.Join(extra, "  ")
-		}
-
-		fmt.Printf("%s %s  %-70s%s\n", ShortID(id), prStateSymbol(state), TruncateString(title, 70), extraStr)
 	}
+}
+
+func PrintSinglePr(pr JsonObject) {
+	id := ToString(pr["id"]) + "/" + ToString(pr["slug"])
+	title := ToString(pr["title"])
+
+	author := ""
+	if a, ok := pr["author"].(JsonObject); ok {
+		author = ToString(a["id"]) + "/" + ToString(a["slug"])
+	}
+
+	state := ToString(pr["status"])
+	updated := prettyTime(pr["updated_at"])
+	source := ToString(pr["source_branch"])
+	target := ToString(pr["target_branch"])
+
+	extra := []string{}
+	if source != "" || target != "" {
+		extra = append(extra, fmt.Sprintf("%s→%s", source, target))
+	}
+	if author != "" {
+		extra = append(extra, "by:"+author)
+	}
+	if updated != "" {
+		extra = append(extra, "updated:"+updated)
+	}
+	extraStr := ""
+	if len(extra) > 0 {
+		extraStr = "  — " + strings.Join(extra, "  ")
+	}
+
+	fmt.Printf("%s %s  %-70s%s\n", ShortID(id), prStateSymbol(state), TruncateString(title, 70), extraStr)
 }
 
 func CreatePr(orgSlug, repoSlug, title, sourceBranch, targetBranch string, silent bool) {
@@ -135,7 +150,7 @@ func CreatePr(orgSlug, repoSlug, title, sourceBranch, targetBranch string, silen
 		Ensure(fmt.Errorf("repo not specified"))
 	}
 	path := fmt.Sprintf("/repos/%s/%s/pulls", orgSlug, repoSlug)
-	payload := map[string]any{
+	payload := JsonObject{
 		"title":         title,
 		"source_branch": sourceBranch,
 		"target_branch": targetBranch,
@@ -147,9 +162,9 @@ func CreatePr(orgSlug, repoSlug, title, sourceBranch, targetBranch string, silen
 	} else {
 		result, err := DoRequest("POST", path, payload)
 		Ensure(err)
-		fmt.Printf("Pull request created: %s\n", fmtString(result["slug"], result["id"]))
-		if url := fmtString(result["url"], result["html_url"], result["web_url"]); url != "" {
-			fmt.Printf("  url: %s\n", url)
+		fmt.Printf("Pull request created: %s/%s\n", ToString(result["slug"]), ToString(result["id"]))
+		if url, ok := result["clone_urls"]; ok {
+			fmt.Printf("  http: %s, ssh\n", url)
 		}
 	}
 }
@@ -164,20 +179,20 @@ func ViewPr(orgSlug, repoSlug, prSlug string) {
 	result, err := DoRequest("GET", path, nil)
 	Ensure(err)
 
-	id := fmtString(result["id"], result["slug"])
-	title := fmtString(result["title"], result["name"])
-	state := fmtString(result["status"], result["state"])
+	id := ToString(result["id"]) + "/" + ToString(result["slug"])
+	title := ToString(result["title"])
+	state := ToString(result["status"])
 	author := ""
-	if a, ok := result["author"].(map[string]any); ok {
-		author = fmtString(a["slug"], a["id"])
+	if a, ok := result["author"].(JsonObject); ok {
+		author = ToString(a["slug"]) + "/" + ToString(a["id"])
 	}
-	created := prettyTimeShortAny(result["created_at"])
-	updated := prettyTimeShortAny(result["updated_at"])
-	source := fmtString(result["source_branch"], result["head"])
-	target := fmtString(result["target_branch"], result["base"])
-	commits := fmtString(result["commits_count"], result["commits"])
-	comments := fmtString(result["comments_count"], result["comments"])
-	description := fmtString(result["description"], result["body"])
+	created := prettyTime(result["created_at"])
+	updated := prettyTime(result["updated_at"])
+	source := ToString(result["source_branch"])
+	target := ToString(result["target_branch"])
+	commits := ToString(result["commits_count"])
+	comments := ToString(result["comments_count"])
+	description := ToString(result["description"])
 
 	fmt.Printf("%s\n", title)
 	fmt.Printf("pr %s  %s\n\n", id, strings.ToUpper(state))
@@ -212,8 +227,8 @@ func ViewPr(orgSlug, repoSlug, prSlug string) {
 	if rv, ok := result["reviewers"].([]any); ok && len(rv) > 0 {
 		fmt.Println("Reviewers:")
 		for _, r := range rv {
-			if mm, ok := r.(map[string]any); ok {
-				fmt.Printf("  - %s (%s)\n", fmtString(mm["slug"], mm["id"]), fmtString(mm["state"], mm["status"]))
+			if mm, ok := r.(JsonObject); ok {
+				fmt.Printf("  - %s (%s)\n", ToString(mm["slug"]) + "/" + ToString(mm["id"]), ToString(mm["status"]))
 			} else {
 				fmt.Printf("  - %v\n", r)
 			}
@@ -225,7 +240,7 @@ func ViewPr(orgSlug, repoSlug, prSlug string) {
 		fmt.Printf("Linked issues: %d\n\n", len(linked))
 	}
 
-	if checks, ok := result["checks"].(map[string]any); ok && len(checks) > 0 {
+	if checks, ok := result["checks"].(JsonObject); ok && len(checks) > 0 {
 		fmt.Println("Checks:")
 		for k, v := range checks {
 			fmt.Printf("  %-20s %v\n", k, v)
@@ -235,40 +250,7 @@ func ViewPr(orgSlug, repoSlug, prSlug string) {
 }
 
 func MergePr(orgSlug, repoSlug, prSlug, method string, squash bool, deleteBranch bool) {
-	if orgSlug == "" || repoSlug == "" {
-		Ensure(fmt.Errorf("repo not specified"))
-	}
-	path := fmt.Sprintf("/repos/%s/%s/pulls/%s/merge", orgSlug, repoSlug, prSlug)
-	body := map[string]any{}
-	if method != "" {
-		body["method"] = method
-	}
-	if squash {
-		body["squash"] = true
-	}
-	if deleteBranch {
-		body["delete_branch"] = true
-	}
-	result, err := DoRequest("POST", path, body)
-	Ensure(err)
-
-	merged := false
-	if b, ok := result["merged"].(bool); ok {
-		merged = b
-	}
-	if merged {
-		fmt.Printf("Pull request %s merged\n", prSlug)
-		if url := fmtString(result["url"], result["html_url"], result["web_url"]); url != "" {
-			fmt.Printf("  url: %s\n", url)
-		}
-	} else {
-		if status := fmtString(result["status"], result["state"]); status != "" {
-			fmt.Printf("Merge result: %s\n", status)
-		} else {
-			fmt.Println("Merge finished (no explicit confirmation returned)")
-		}
-	}
-	fmt.Println()
+	fmt.Println("НЕ РЕАЛИЗОВАНО")
 }
 
 func prStateSymbol(s string) string {
