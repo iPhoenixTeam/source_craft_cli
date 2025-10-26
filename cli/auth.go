@@ -76,7 +76,7 @@ func DispatchConfig(command string, args []string) {
             if len(rem) > 0 {
                 key = rem[0]
             }
-            ConfigGet(key)
+            ConfigPrint(key)
             return
         } else {
             return
@@ -140,7 +140,7 @@ func ConfigSet(key, value string) {
     fmt.Printf("Config %s set to %s\n", key, value)
 }
 
-func ConfigGet(key string) {
+func ConfigPrint(key string) {
     cfg, err := loadConfig()
     Ensure(err)
 

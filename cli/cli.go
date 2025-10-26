@@ -12,7 +12,6 @@ import (
 var (
 	API = "https://api.sourcecraft.tech" 
 	client = &http.Client{}  
-	PAT = "pv1_QOt95M5kFS43F0WBLl4f43xHUT9zQ6819332l5x76Z61m76Z9d88J93Bm429UxR0_3059427555"
 )
 
 func DoRequest(method, path string, data map[string] any) (map[string] any, error) {
@@ -39,8 +38,11 @@ func Execute(method, path, data string) (map[string] any, error) {
 	req.Header.Set("Accept", "application/json") 
 	req.Header.Set("Content-Type", "application/json")  
 
-	if len(PAT) > 0 {
-		req.Header.Set("Authorization", "Bearer " + PAT)
+	cfg, err := loadConfig()
+    Ensure(err)
+
+	if cfg.AuthToken != "" {
+		req.Header.Set("Authorization", "Bearer " + cfg.AuthToken)
 	}
 	
 	resp, err := client.Do(req)  
@@ -92,8 +94,6 @@ func ToJson(m map[string] any) (string, error) {
 
     return string(b), nil
 }
-
-func HelpIfEmpty() {}
 
 func NewCmd(name, usage string, errorHandling flag.ErrorHandling) *flag.FlagSet {
 	fs := flag.NewFlagSet(name, flag.ContinueOnError)
