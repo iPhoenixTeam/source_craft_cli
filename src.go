@@ -11,14 +11,34 @@ import (
 var Version = "1.0.0"
 
 func main() {
-	if len(os.Args) < 2 {
-        fmt.Fprintln(os.Stderr, "Usage: src <command> [<subcommand> [args...]]")
+	if len(os.Args) < 3 {
+        fmt.Println("Usage: src <command> [<cmdcommand> [args...]]")
         os.Exit(2)
     }
 
     cmd := os.Args[1]
+	subcmd := os.Args[2]
+	args := os.Args[3:]
 
     switch cmd {
+        case "repo":
+            cli.DispatchRepo(subcmd, args)
+        case "issue":
+            cli.DispatchIssue(subcmd, args)
+        case "pr":
+            cli.DispatchPr(subcmd, args)
+        case "milestone":
+            cli.DispatchMilestone(subcmd, args)
+        case "workflow":
+            cli.DispatchWorkflow(subcmd, args)
+        case "report":
+            cli.DispatchReport(subcmd, args)
+        case "stats":
+            cli.DispatchStats(subcmd, args)
+		case "auth":
+            cli.DispatchAuth(subcmd, args)
+        case "config":
+            cli.DispatchConfig(subcmd, args)
     case "--version", "--v", "-v":
         fmt.Println(Version)
         return
@@ -36,37 +56,9 @@ func main() {
 Use "src <command> --help" for command-specific help.`)
 
     default:
-        if len(os.Args) < 3 {
-            fmt.Fprintln(os.Stderr, "missing subcommand")
-            os.Exit(2)
-        }
-        sub := os.Args[2]
-        args := os.Args[3:]
-
-        switch cmd {
-        case "repo":
-            cli.DispatchRepo(sub, args)
-        case "issue":
-            cli.DispatchIssue(sub, args)
-        case "pr":
-            cli.DispatchPr(sub, args)
-        case "milestone":
-            cli.DispatchMilestone(sub, args)
-        case "workflow":
-            cli.DispatchWorkflow(sub, args)
-        case "report":
-            cli.DispatchReport(sub, args)
-        case "stats":
-            cli.DispatchStats(sub, args)
-		case "auth":
-            cli.DispatchAuth(sub, args)
-        case "config":
-            cli.DispatchConfig(sub, args)
-        default:
-            fmt.Fprintln(os.Stderr, "Unknown command:", cmd)
-            printCommandHelp(cmd)
-			os.Exit(1)
-        }
+		fmt.Fprintln(os.Stderr, "Unknown command:", cmd)
+		printCommandHelp(cmd)
+		os.Exit(1)
     }
 }
 
@@ -109,5 +101,4 @@ func printCommandHelp(cmd string) {
 	// print flag hint
 	fmt.Println("\nFlags:")
 	fmt.Println("  --help     Show this help")
-	fmt.Println("  --verbose  Enable verbose output")
 }

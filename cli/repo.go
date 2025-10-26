@@ -19,7 +19,7 @@ const (
 )
 
 func printRepoHelp() {
-    fmt.Fprintln(os.Stderr, `repo commands:
+	fmt.Fprintln(os.Stderr, `repo commands:
   repo list [org]
   repo create <org> <name> [options]
   repo fork <srcOrg> <srcRepo> <newSlug> [options]
@@ -30,119 +30,125 @@ Use "repo <command> --help" for command-specific flags.`)
 func DispatchRepo(command string, args []string) {
 	switch command {
 	case "list":
-        fs := NewCmd("repo list", "Usage: %s list [org]\n", flag.ContinueOnError)
-        
+		fs := NewCmd("repo list", "Usage: %s list [org]\n", flag.ContinueOnError)
+
 		pageSize := fs.Int("pageSize", 30, "pagesize")
 		pageToken := fs.String("pageToken", "", "page token")
 
-        if err := fs.Parse(args); err == nil {
+		if err := fs.Parse(args); err == nil {
 			ListRepo(fs.Arg(0), int64(*pageSize), *pageToken)
-        }
+		}
 
-    case "create":
-        fs := NewCmd("repo create", "Usage: %s create <org> <name> [options]\n", flag.ContinueOnError)
+	case "create":
+		fs := NewCmd("repo create", "Usage: %s create <org> <name> [options]\n", flag.ContinueOnError)
 
-        desc := fs.String("desc", "", "repository description")
+		desc := fs.String("desc", "", "repository description")
 		createReadme := fs.Bool("create-readme", false, "create readme file")
-        visibility := fs.String("visibility", string(RepoPublic), "visibility: public|private|internal")
+		visibility := fs.String("visibility", string(RepoPublic), "visibility: public|private|internal")
 		defaultBranch := fs.String("defaultBranch", "", "default branch name")
-        
+
 		if err := fs.Parse(args); err == nil {
 			rem := Require(fs, 2, "Usage: %s create <org> <name> [options]")
-        
+
 			var vis RepoVisibility
 			switch *visibility {
-				case string(RepoPrivate):
-					vis = RepoPrivate
-				case string(RepoInternal):
-					vis = RepoInternal
-				default:
-					vis = RepoPublic
+			case string(RepoPrivate):
+				vis = RepoPrivate
+			case string(RepoInternal):
+				vis = RepoInternal
+			default:
+				vis = RepoPublic
 			}
 
 			CreateRepo(rem[0], rem[1], *desc, vis, *defaultBranch, *createReadme)
 		}
 
-    case "fork":
-        fs := NewCmd("repo fork", "Usage: %s fork <srcOrg> <srcRepo> <newSlug> [options]\n", flag.ContinueOnError)
-        
-        defaultOnly := fs.Bool("default-branch-only", true, "fork")
-        
+	case "fork":
+		fs := NewCmd("repo fork", "Usage: %s fork <srcOrg> <srcRepo> <newSlug> [options]\n", flag.ContinueOnError)
+
+		defaultOnly := fs.Bool("default-branch-only", true, "fork")
+
 		if err := fs.Parse(args); err == nil {
-            rem := Require(fs, 3, "usage: fork requires <srcOrg> <srcRepo> <newSlug>")
-			
+			rem := Require(fs, 3, "usage: fork requires <srcOrg> <srcRepo> <newSlug>")
+
 			ForkRepo(rem[0], rem[1], rem[2], *defaultOnly)
-        }
-        
-    case "view":
-        fs := NewCmd("repo view", "Usage: %s view <org> <repo>\n", flag.ContinueOnError)
-        
+		}
+
+	case "view":
+		fs := NewCmd("repo view", "Usage: %s view <org> <repo>\n", flag.ContinueOnError)
+
 		if err := fs.Parse(args); err == nil {
-            rem := Require(fs, 2, "usage: view requires <org> <repo>")
+			rem := Require(fs, 2, "usage: view requires <org> <repo>")
 
 			ViewRepo(rem[0], rem[1])
-        }
+		}
 
-    case "--help", "-h", "help", "":
-        printRepoHelp()
+	case "--help", "-h", "help", "":
+		printRepoHelp()
 
-    default:
-        printRepoHelp()
+	default:
+		printRepoHelp()
 	}
 }
 
 func ListRepo(orgSlug string, pageSize int64, pageToken string) {
-    path := fmt.Sprintf("/orgs/%s/repos", orgSlug)
-	
+	path := fmt.Sprintf("/orgs/%s/repos", orgSlug)
+
 	q := make([]string, 0, 2)
-    if pageSize > 0 {
-        q = append(q, fmt.Sprintf("page_size=%d", pageSize))
-    }
-    if pageToken != "" {
-        q = append(q, "page_token="+url.QueryEscape(pageToken))
-    }
-    if len(q) > 0 {
-        path = path + "?" + strings.Join(q, "&")
-    }
+	if pageSize > 0 {
+		q = append(q, fmt.Sprintf("page_size=%d", pageSize))
+	}
+	if pageToken != "" {
+		q = append(q, "page_token="+url.QueryEscape(pageToken))
+	}
+	if len(q) > 0 {
+		path = path + "?" + strings.Join(q, "&")
+	}
 
-    resp, err := DoRequest("GET", path, nil)
-    Ensure(err)
+	resp, err := DoRequest("GET", path, nil)
+	Ensure(err)
 
-    var items []any
-    if arr, ok := resp["items"].([]any); ok {
-        items = arr
-    }
+	var items []any
+	if arr, ok := resp["repositories"].([]any); ok {
+		items = arr
+	}
 
-    fmt.Printf("Repositories for %s\n\n", orgSlug)
-    for _, it := range items {
-        m, ok := it.(map[string]any)
-        if !ok {
-            continue
-        }
-        id := ToString(resp["id"]) + "/" + ToString(resp["slug"])
-        name := ToString(m["name"])
-        vis := ToString(m["visibility"])
-        lang := ToString(m["language"])
-        updated := prettyTime(m["last_updated"])
-        counters := m["counters"]
-        forks, prs, issues := "0", "0", "0"
-        if c, ok := counters.(map[string]any); ok {
-            if v, ok := c["forks"].(string); ok { forks = v }
-            if v, ok := c["pull_requests"].(string); ok { prs = v }
-            if v, ok := c["issues"].(string); ok { issues = v }
-        }
-        desc := ToString(m["description"])
-        fmt.Printf("%s %s  %-20s  %s  %s\n", id, visSymbol(vis), name, lang, updated)
-        fmt.Printf("    ↳ forks:%s  prs:%s  issues:%s\n", forks, prs, issues)
-        if desc != "" {
-            fmt.Printf("    %s\n", TruncateString(desc, 80))
-        }
-        fmt.Println()
-    }
+	fmt.Printf("Repositories for %s\n\n", orgSlug)
+	for _, it := range items {
+		m, ok := it.(JsonObject)
+		if !ok {
+			continue
+		}
+		id := ToString(resp["id"]) + "/" + ToString(resp["slug"])
+		name := ToString(m["name"])
+		vis := ToString(m["visibility"])
+		lang := ToString(m["language"])
+		updated := prettyTime(m["last_updated"])
+		counters := m["counters"]
+		forks, prs, issues := "0", "0", "0"
+		if c, ok := counters.(map[string]any); ok {
+			if v, ok := c["forks"].(string); ok {
+				forks = v
+			}
+			if v, ok := c["pull_requests"].(string); ok {
+				prs = v
+			}
+			if v, ok := c["issues"].(string); ok {
+				issues = v
+			}
+		}
+		desc := ToString(m["description"])
+		fmt.Printf("%s %s  %-20s  %s  %s\n", id, visSymbol(vis), name, lang, updated)
+		fmt.Printf("    ↳ forks:%s  prs:%s  issues:%s\n", forks, prs, issues)
+		if desc != "" {
+			fmt.Printf("    %s\n", TruncateString(desc, 80))
+		}
+		fmt.Println()
+	}
 }
 
 func CreateRepo(orgSlug, repoSlug, description string, visibility RepoVisibility, defaultBranch string, createReadme bool) {
-	body := map[string] any {
+	body := map[string]any{
 		"name":        repoSlug,
 		"slug":        repoSlug,
 		"description": description,
@@ -156,42 +162,42 @@ func CreateRepo(orgSlug, repoSlug, description string, visibility RepoVisibility
 	Ensure(err)
 
 	id := ToString(resp["id"]) + "/" + ToString(resp["slug"])
-    name := ToString(resp["name"])
-    desc := ToString(resp["description"])
-    vis := ToString(resp["visibility"])
+	name := ToString(resp["name"])
+	desc := ToString(resp["description"])
+	vis := ToString(resp["visibility"])
 
 	created := prettyTime(resp["created_at"])
-    updated := prettyTime(resp["updated_at"])
-    cloneURL := ""
+	updated := prettyTime(resp["updated_at"])
+	cloneURL := ""
 	if v, ok := resp["clone_url"].(map[string]any); ok {
 		cloneURL = "https: " + ToString(v["https"]) + ", ssh: " + ToString(v["ssh"])
 	}
-    fmt.Println()
-    fmt.Printf("Repository created: %s\n", id)
+	fmt.Println()
+	fmt.Printf("Repository created: %s\n", id)
 	fmt.Printf("  Name        : %s\n", TruncateString(name, 60))
 
-    if desc != "" {
-        fmt.Printf("  Description : %s\n", TruncateString(desc, 200))
-    }
-    if cloneURL != "" {
-        fmt.Printf("  URL         : %s\n", cloneURL)
-    }
-    fmt.Printf("  Visibility : %s\n", vis)
-    if defaultBranch != "" {
-        fmt.Printf("  Default     : %s\n", defaultBranch)
-    }
-    if created != "" {
-        fmt.Printf("  Created     : %s\n", created)
-    }
-    if updated != "" {
-        fmt.Printf("  Updated     : %s\n", updated)
-    }
-    fmt.Println()
+	if desc != "" {
+		fmt.Printf("  Description : %s\n", TruncateString(desc, 200))
+	}
+	if cloneURL != "" {
+		fmt.Printf("  URL         : %s\n", cloneURL)
+	}
+	fmt.Printf("  Visibility : %s\n", vis)
+	if defaultBranch != "" {
+		fmt.Printf("  Default     : %s\n", defaultBranch)
+	}
+	if created != "" {
+		fmt.Printf("  Created     : %s\n", created)
+	}
+	if updated != "" {
+		fmt.Printf("  Updated     : %s\n", updated)
+	}
+	fmt.Println()
 }
 
 func ForkRepo(orgSlug, oldRepoSlug, forkRepoSlug string, defaultBranchOnly bool) {
-	body := map[string] any{
-		"org_slug":			   orgSlug,
+	body := map[string]any{
+		"org_slug":            orgSlug,
 		"slug":                forkRepoSlug,
 		"default_branch_only": defaultBranchOnly,
 	}
@@ -312,55 +318,55 @@ func containsRemote(list string, name string) bool {
 }
 
 func visSymbol(vis string) string {
-    switch strings.ToLower(vis) {
-    case "internal":
-        return "🔒 internal"
-    case "private":
-        return "🔐 private"
-    default:
-        return "🌐 public"
-    }
+	switch strings.ToLower(vis) {
+	case "internal":
+		return "🔒 internal"
+	case "private":
+		return "🔐 private"
+	default:
+		return "🌐 public"
+	}
 }
 
 func ViewRepo(orgSlug, repoSlug string) {
-    path := fmt.Sprintf("/repos/%s/%s", orgSlug, repoSlug)
-    resp, err := DoRequest("GET", path, nil)
-    Ensure(err)
+	path := fmt.Sprintf("/repos/%s/%s", orgSlug, repoSlug)
+	resp, err := DoRequest("GET", path, nil)
+	Ensure(err)
 
-    id := ToString(resp["id"])
-    name := ToString(resp["name"])
-    desc := ToString(resp["description"])
-    visibility := ToString(resp["visibility"])
-    defaultBranch := ToString(resp["default_branch"])
-    lang := MapStringField(resp, "language", "name")
-    lastUpdated := prettyTime(resp["last_updated"])
-    isEmpty := resp["is_empty"]
-    cloneURL := ""
-    if cu, ok := resp["clone_url"].(JsonObject); ok {
-        cloneURL =" http: " + ToString(cu["https"]) + ", ssh: " + ToString(cu["ssh"])
-    }
-    parent := ""
-    if p, ok := resp["organization"].(map[string]any); ok {
-        parent = ToString(p["slug"]) + "/" + ToString(p["id"])
-    }
+	id := ToString(resp["id"])
+	name := ToString(resp["name"])
+	desc := ToString(resp["description"])
+	visibility := ToString(resp["visibility"])
+	defaultBranch := ToString(resp["default_branch"])
+	lang := MapStringField(resp, "language", "name")
+	lastUpdated := prettyTime(resp["last_updated"])
+	isEmpty := resp["is_empty"]
+	cloneURL := ""
+	if cu, ok := resp["clone_url"].(JsonObject); ok {
+		cloneURL = "https: " + ToString(cu["https"]) + ", ssh: " + ToString(cu["ssh"])
+	}
+	parent := ""
+	if p, ok := resp["organization"].(map[string]any); ok {
+		parent = ToString(p["slug"]) + "/" + ToString(p["id"])
+	}
 
-    fmt.Printf("%s\n", name)
-    fmt.Printf("repo %s\n\n", id)
-    if desc != "" {
-        fmt.Println(IndentString(desc, 4))
-        fmt.Println()
-    }
+	fmt.Printf("%s\n", name)
+	fmt.Printf("repo %s\n\n", id)
+	if desc != "" {
+		fmt.Println(IndentString(desc, 4))
+		fmt.Println()
+	}
 
-    fmt.Printf("Visibility: %s\n", visibility)
-    fmt.Printf("Language:   %s\n", lang)
-    fmt.Printf("Default:    %s\n", defaultBranch)
-    fmt.Printf("Updated:    %s\n", lastUpdated)
-    fmt.Printf("Empty:      %s\n", isEmpty)
-    if parent != "" {
-        fmt.Printf("Parent:     %s\n", parent)
-    }
-    if cloneURL != "" {
-        fmt.Printf("Clone:      %s\n", cloneURL)
-    }
-    fmt.Println()
+	fmt.Printf("Visibility:     %s\n", visibility)
+	fmt.Printf("Language:       %s\n", lang)
+	fmt.Printf("Default Branch: %s\n", defaultBranch)
+	fmt.Printf("Updated:        %s\n", lastUpdated)
+	fmt.Printf("Empty:          %t\n", isEmpty)
+	if parent != "" {
+		fmt.Printf("Parent:         %s\n", parent)
+	}
+	if cloneURL != "" {
+		fmt.Printf("Clone:          %s\n", cloneURL)
+	}
+	fmt.Println()
 }

@@ -96,8 +96,7 @@ func AuthLogin(token string) {
     if token == "" {
         Ensure(fmt.Errorf("token is empty"))
     }
-    cfg, err := loadConfig()
-    Ensure(err)
+    cfg, _ := loadConfig()
 
     cfg.AuthToken = token
 

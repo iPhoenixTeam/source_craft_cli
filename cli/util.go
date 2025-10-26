@@ -103,12 +103,7 @@ func NumberFrom(v any) (int, bool) {
 func ParseDateFromMap(m map[string]any, keys ...string) string {
     for _, k := range keys {
         if v, ok := m[k]; ok && v != nil {
-            if s, ok := v.(string); ok && s != "" {
-                if t, err := time.Parse(time.RFC3339, s); err == nil {
-                    return t.Format("2006-01-02")
-                }
-                return s
-            }
+            return prettyTime(v)
         }
     }
     return ""

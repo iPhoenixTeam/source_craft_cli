@@ -12,6 +12,7 @@ import (
 var (
 	API = "https://api.sourcecraft.tech" 
 	client = &http.Client{}  
+
 )
 
 func DoRequest(method, path string, data map[string] any) (map[string] any, error) {
@@ -39,7 +40,9 @@ func Execute(method, path, data string) (map[string] any, error) {
 	req.Header.Set("Content-Type", "application/json")  
 
 	cfg, err := loadConfig()
-    Ensure(err)
+    if err != nil {
+		saveConfig(&CLIConfig{AuthToken: "", Settings: make(map[string]string)})
+	}
 
 	if cfg.AuthToken != "" {
 		req.Header.Set("Authorization", "Bearer " + cfg.AuthToken)
@@ -50,7 +53,7 @@ func Execute(method, path, data string) (map[string] any, error) {
 
     defer resp.Body.Close() 
 
-	if resp.StatusCode != http.StatusOK {
+	if (resp.StatusCode < http.StatusOK) && (resp.StatusCode >= http.StatusBadRequest) {
 		bytes, err := io.ReadAll(resp.Body)
 		if err != nil {
 			return nil, fmt.Errorf("http.error %d", resp.StatusCode)
